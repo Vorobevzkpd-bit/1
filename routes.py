@@ -1,21 +1,22 @@
+# ============================================================================
+# Файл: app/modules/warehouse_ppe/routes.py
+# ============================================================================
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify
 from app.shared.permissions import login_required, permission_required
 from app.extensions import db
-from .models import Employee, Item, ItemNorm, IssuedItem
-from .services import WarehouseService
+from .models import Employee, Item, IssuedItem
+from app.modules.documents.services import log_document   # добавлен импорт
+from datetime import datetime, timedelta
 
 bp = Blueprint('warehouse_ppe', __name__, url_prefix='/warehouse')
 
+# ------------------- СОТРУДНИКИ -------------------
 @bp.route('/employees')
 @login_required
 @permission_required('view_warehouse')
 def employees_list():
-    show_all = request.args.get('all', '0') == '1'
-    query = Employee.query
-    if not show_all:
-        query = query.filter_by(active=True)
-    employees = query.order_by(Employee.full_name).all()
-    return render_template('warehouse_ppe/employees.html', employees=employees, show_all=show_all)
+    employees = Employee.query.all()
+    return render_template('warehouse_ppe/employees.html', employees=employees)
 
 @bp.route('/employee/<int:emp_id>')
 @login_required
@@ -23,30 +24,28 @@ def employees_list():
 def employee_card(emp_id):
     emp = Employee.query.get_or_404(emp_id)
     issuances = IssuedItem.query.filter_by(employee_id=emp_id).order_by(IssuedItem.date_issued.desc()).all()
-    norms = WarehouseService.get_norms_for_position(emp.position or '')
     items = Item.query.order_by(Item.name).all()
-    positions = WarehouseService.get_positions()
-    return render_template('warehouse_ppe/employee_card.html', emp=emp, issuances=issuances, norms=norms, items=items, positions=positions)
+    return render_template('warehouse_ppe/employee_card.html', emp=emp, issuances=issuances, items=items)
 
 @bp.route('/employee/add', methods=['GET', 'POST'])
 @login_required
 @permission_required('manage_warehouse')
 def employee_add():
     if request.method == 'POST':
-        full_name = request.form.get('full_name')
-        position = request.form.get('position')
-        department = request.form.get('department')
-        badge = request.form.get('badge_number')
-        personnel = request.form.get('personnel_number')
-        hire_date = request.form.get('hire_date')
-        if not full_name:
-            flash('ФИО обязательно', 'danger')
-            return redirect(url_for('warehouse_ppe.employee_add'))
-        WarehouseService.add_employee(full_name, position, department, badge, personnel, hire_date)
+        emp = Employee(
+            full_name=request.form.get('full_name'),
+            position=request.form.get('position'),
+            department=request.form.get('department'),
+            badge_number=request.form.get('badge_number'),
+            personnel_number=request.form.get('personnel_number'),
+            hire_date=request.form.get('hire_date'),
+            active=True
+        )
+        db.session.add(emp)
+        db.session.commit()
         flash('Сотрудник добавлен', 'success')
         return redirect(url_for('warehouse_ppe.employees_list'))
-    positions = WarehouseService.get_positions()
-    return render_template('warehouse_ppe/employee_add.html', positions=positions)
+    return render_template('warehouse_ppe/employee_add.html')
 
 @bp.route('/employee/<int:emp_id>/edit', methods=['POST'])
 @login_required
@@ -71,6 +70,7 @@ def employee_delete(emp_id):
     flash('Сотрудник удалён', 'success')
     return redirect(url_for('warehouse_ppe.employees_list'))
 
+# ------------------- ВЫДАЧА И ВОЗВРАТ -------------------
 @bp.route('/issue', methods=['POST'])
 @login_required
 @permission_required('manage_warehouse')
@@ -79,10 +79,32 @@ def issue_item():
     item_id = request.form.get('item_id')
     quantity = float(request.form.get('quantity', 1))
     date_issued = request.form.get('date_issued')
-    if not emp_id or not item_id:
-        flash('Не указан сотрудник или предмет', 'danger')
-        return redirect(request.referrer or url_for('warehouse_ppe.employees_list'))
-    WarehouseService.issue_item(int(emp_id), int(item_id), quantity, date_issued)
+    item = Item.query.get(item_id)
+    date_expire = None
+    if item and item.wear_period:
+        dt = datetime.strptime(date_issued, '%Y-%m-%d')
+        date_expire = (dt + timedelta(days=item.wear_period * 30.44)).strftime('%Y-%m-%d')
+    issued = IssuedItem(
+        employee_id=emp_id,
+        item_id=item_id,
+        quantity=quantity,
+        date_issued=date_issued,
+        date_expire=date_expire,
+        status='issued'
+    )
+    db.session.add(issued)
+    db.session.commit()
+    
+    # Логирование выдачи
+    emp = Employee.query.get(emp_id)
+    log_document(
+        doc_type='ppe_issue',
+        doc_id=issued.id,
+        title=f"Выдача {item.name} сотруднику {emp.full_name}",
+        user_id=session['user_id'],
+        employee_name=emp.full_name
+    )
+    
     flash('Выдача зафиксирована', 'success')
     return redirect(url_for('warehouse_ppe.employee_card', emp_id=emp_id))
 
@@ -90,20 +112,46 @@ def issue_item():
 @login_required
 @permission_required('manage_warehouse')
 def return_item(issue_id):
-    if WarehouseService.return_item(issue_id):
+    issued = IssuedItem.query.get_or_404(issue_id)
+    if issued.status == 'issued':
+        issued.status = 'returned'
+        issued.date_returned = datetime.now().strftime('%Y-%m-%d')
+        db.session.commit()
+        
+        # Логирование возврата
+        log_document(
+            doc_type='ppe_return',
+            doc_id=issue_id,
+            title=f"Возврат {issued.item.name} от {issued.employee.full_name}",
+            user_id=session['user_id'],
+            employee_name=issued.employee.full_name
+        )
+        
         flash('Возврат зафиксирован', 'success')
     else:
-        flash('Ошибка возврата', 'danger')
+        flash('Этот предмет уже возвращён или списан', 'warning')
     return redirect(request.referrer or url_for('warehouse_ppe.employees_list'))
 
 @bp.route('/employee/<int:emp_id>/write_off_expired', methods=['POST'])
 @login_required
 @permission_required('manage_warehouse')
 def write_off_expired(emp_id):
-    count = WarehouseService.write_off_expired(emp_id)
+    today = datetime.now().strftime('%Y-%m-%d')
+    expired = IssuedItem.query.filter(
+        IssuedItem.employee_id == emp_id,
+        IssuedItem.status == 'issued',
+        IssuedItem.date_expire <= today
+    ).all()
+    count = 0
+    for item in expired:
+        item.status = 'written_off'
+        item.notes = 'Списано по сроку'
+        count += 1
+    db.session.commit()
     flash(f'Списано позиций: {count}', 'success')
     return redirect(url_for('warehouse_ppe.employee_card', emp_id=emp_id))
 
+# ------------------- ПРЕДМЕТЫ -------------------
 @bp.route('/items')
 @login_required
 @permission_required('view_warehouse')
@@ -129,48 +177,46 @@ def item_add():
     flash('Предмет добавлен', 'success')
     return redirect(url_for('warehouse_ppe.items_list'))
 
+# ------------------- НОРМЫ ВЫДАЧИ (заглушки) -------------------
 @bp.route('/norms')
 @login_required
 @permission_required('view_warehouse')
 def norms_list():
-    norms = db.session.query(ItemNorm, Item).join(Item, ItemNorm.item_id == Item.id).order_by(ItemNorm.position, Item.name).all()
-    items = Item.query.all()
-    positions = WarehouseService.get_positions()
-    return render_template('warehouse_ppe/norms.html', norms=norms, items=items, positions=positions)
+    return render_template('warehouse_ppe/norms.html', norms=[], items=[], positions=[])
 
 @bp.route('/norms/add', methods=['POST'])
 @login_required
 @permission_required('manage_warehouse')
 def norm_add():
-    position = request.form.get('position')
-    item_id = request.form.get('item_id')
-    quantity = float(request.form.get('quantity', 1))
-    period = request.form.get('period_months')
-    if not position or not item_id:
-        flash('Укажите должность и предмет', 'danger')
-        return redirect(url_for('warehouse_ppe.norms_list'))
-    norm = ItemNorm(position=position, item_id=int(item_id), quantity=quantity, period_months=period or None)
-    db.session.add(norm)
-    db.session.commit()
-    flash('Норма добавлена', 'success')
+    flash('Функция добавления норм будет реализована позже', 'info')
     return redirect(url_for('warehouse_ppe.norms_list'))
 
 @bp.route('/norms/delete/<int:norm_id>', methods=['POST'])
 @login_required
 @permission_required('manage_warehouse')
 def norm_delete(norm_id):
-    ItemNorm.query.filter_by(id=norm_id).delete()
-    db.session.commit()
-    flash('Норма удалена', 'success')
+    flash('Функция удаления норм будет реализована позже', 'info')
     return redirect(url_for('warehouse_ppe.norms_list'))
 
+# ------------------- ЖУРНАЛ ОПЕРАЦИЙ -------------------
 @bp.route('/journal')
 @login_required
 @permission_required('view_warehouse')
 def journal():
-    operations = db.session.query(IssuedItem, Employee, Item).join(Employee, IssuedItem.employee_id == Employee.id).join(Item, IssuedItem.item_id == Item.id).order_by(IssuedItem.date_issued.desc()).all()
+    operations = []
     return render_template('warehouse_ppe/journal.html', operations=operations)
 
+# ------------------- ЗАГРУЗКА СОТРУДНИКОВ ИЗ EXCEL (заглушка) -------------------
+@bp.route('/employee/upload', methods=['GET', 'POST'])
+@login_required
+@permission_required('manage_warehouse')
+def employee_upload():
+    if request.method == 'POST':
+        flash('Загрузка из Excel будет доступна позже', 'info')
+        return redirect(url_for('warehouse_ppe.employees_list'))
+    return render_template('warehouse_ppe/employee_upload.html')
+
+# ------------------- API ПОИСК ПО КАРТЕ -------------------
 @bp.route('/api/find_employee_by_badge')
 @login_required
 @permission_required('view_warehouse')
@@ -182,13 +228,3 @@ def find_employee_by_badge():
     if emp:
         return jsonify({'found': True, 'id': emp.id, 'full_name': emp.full_name, 'position': emp.position, 'badge': emp.badge_number})
     return jsonify({'found': False})
-
-@bp.route('/employee/upload', methods=['GET', 'POST'])
-@login_required
-@permission_required('manage_warehouse')
-def employee_upload():
-    if request.method == 'POST':
-        # Здесь будет обработка Excel – пока заглушка
-        flash('Загрузка через Excel будет добавлена позже', 'info')
-        return redirect(url_for('warehouse_ppe.employees_list'))
-    return render_template('warehouse_ppe/employee_upload.html')

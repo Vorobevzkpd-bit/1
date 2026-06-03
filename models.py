@@ -1,10 +1,4 @@
 from app.extensions import db
-from datetime import datetime
-
-class Position(db.Model):
-    __tablename__ = 'positions'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
 
 class Employee(db.Model):
     __tablename__ = 'employees'
@@ -21,9 +15,9 @@ class Item(db.Model):
     __tablename__ = 'items'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
-    type = db.Column(db.String(20))  # 'СИЗ' или 'Инструмент'
+    type = db.Column(db.String(20))
     unit = db.Column(db.String(20), default='шт.')
-    wear_period = db.Column(db.Integer)  # срок носки в месяцах
+    wear_period = db.Column(db.Integer)
     description = db.Column(db.Text)
 
 class ItemNorm(db.Model):
@@ -43,5 +37,5 @@ class IssuedItem(db.Model):
     date_issued = db.Column(db.String(20), nullable=False)
     date_expire = db.Column(db.String(20))
     date_returned = db.Column(db.String(20))
-    status = db.Column(db.String(20), default='issued')  # issued, returned, written_off
+    status = db.Column(db.String(20), default='issued')
     notes = db.Column(db.Text)
