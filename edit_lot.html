@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Редактирование партии – Склад ГП{% endblock %}
+{% block content %}
+<h2>✏️ Редактирование партии</h2>
+<form method="POST">
+  <div class="form-group"><label>Продукт (не редактируется)</label><input class="form-control" value="{{ lot[8] }}" disabled></div>
+  <div class="form-group"><label>Счет / партия</label><input type="text" name="batch_reference" class="form-control" value="{{ lot[2] or '' }}"></div>
+  <div class="form-group"><label>Количество получено</label><input type="number" step="any" name="quantity_received" class="form-control" value="{{ lot[3] }}" required></div>
+  <div class="form-group"><label>Количество отгружено</label><input type="number" step="any" name="quantity_shipped" class="form-control" value="{{ lot[4] }}"></div>
+  <div class="form-group"><label>Дата прихода</label><input type="date" name="date_received" class="form-control" value="{{ lot[7] }}"></div>
+  <div class="form-group"><label>Статус</label>
+    <select name="status" class="form-control">
+      <option value="active" {% if lot[6] == 'active' %}selected{% endif %}>Активная</option>
+      <option value="shipped" {% if lot[6] == 'shipped' %}selected{% endif %}>Отгружена</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-primary">Сохранить</button>
+  <a href="{{ url_for('finished_goods.lots') }}" class="btn btn-secondary">Отмена</a>
+</form>
+{% endblock %}

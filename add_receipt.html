@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Ручной приход на склад{% endblock %}
+{% block content %}
+<h2>➕ Ручной приход готовой продукции</h2>
+<p class="text-muted">Создаёт новую партию. Если изделия нет в справочнике, оно будет добавлено автоматически.</p>
+
+<form method="POST">
+    <div class="form-group">
+        <label>Наименование изделия <span class="text-danger">*</span></label>
+        <input type="text" name="product_name" class="form-control" required autocomplete="off" placeholder="Например: Свая С100.35-12">
+        <small class="form-text text-muted">Можно ввести новое наименование – оно добавится в справочник.</small>
+    </div>
+    <div class="form-group">
+        <label>Номер партии / акта / счёта</label>
+        <input type="text" name="batch_reference" class="form-control" placeholder="Например: Акт №123 от 10.01.2026">
+    </div>
+    <div class="form-group">
+        <label>Количество (шт) <span class="text-danger">*</span></label>
+        <input type="number" name="quantity" class="form-control" step="0.01" min="0.01" required>
+    </div>
+    <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Оформить приход</button>
+    <a href="{{ url_for('finished_goods.stock_overview') }}" class="btn btn-secondary">Отмена</a>
+</form>
+{% endblock %}

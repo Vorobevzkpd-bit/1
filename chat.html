@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}Общий чат{% endblock %}
+
+{% block head_extra %}
+<style>
+    .chat-container {
+        background: white;
+        border-radius: 1rem;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 120px);
+        min-height: 400px;
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.1);
+    }
+    .chat-header {
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        padding: 0.75rem 1rem;
+    }
+    .chat-header h5 {
+        margin: 0;
+        color: #212529;
+        font-weight: 600;
+    }
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        background: #ffffff;
+    }
+    .message {
+        display: flex;
+        max-width: 80%;
+        animation: fadeIn 0.2s ease;
+    }
+    .message-mine {
+        align-self: flex-end;
+    }
+    .message-other {
+        align-self: flex-start;
+    }
+    .message-bubble {
+        padding: 0.6rem 1rem;
+        border-radius: 1.2rem;
+        word-wrap: break-word;
+        box-shadow: 0 1px 1px rgba(0,0,0,0.05);
+    }
+    .message-mine .message-bubble {
+        background: white;
+        border: 1px solid #dee2e6;
+        color: #212529;
+    }
+    .message-other .message-bubble {
+        background: #f0f2f5;
+        border: 1px solid #dee2e6;
+        color: #212529;
+    }
+    .message-info {
+        font-size: 0.7rem;
+        color: #6c757d;
+        margin-bottom: 0.2rem;
+        display: flex;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+    .chat-input {
+        background: white;
+        padding: 0.75rem;
+        border-top: 1px solid #dee2e6;
+    }
+    .input-group {
+        border-radius: 2rem;
+        overflow: hidden;
+    }
+    .input-group input {
+        border: 1px solid #dee2e6;
+        border-right: none;
+        background: white;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+    }
+    .input-group input:focus {
+        background: white;
+        outline: none;
+        box-shadow: none;
+    }
+    .input-group-append button {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-left: none;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        color: #212529;
+        transition: all 0.2s;
+    }
+    .input-group-append button:hover {
+        background: #f8f9fa;
+        color: #212529;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @media (max-width: 768px) {
+        .chat-container { height: calc(100vh - 100px); }
+        .message { max-width: 90%; }
+        .message-bubble { font-size: 0.9rem; padding: 0.5rem 0.8rem; }
+        .input-group input { padding: 0.6rem 1rem; font-size: 0.9rem; }
+        .input-group-append button { padding: 0.6rem 1.2rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="chat-container">
+        <div class="chat-header">
+            <h5><i class="fas fa-comments"></i> Общий чат</h5>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input">
+            <div class="input-group">
+                <input type="text" id="messageInput" class="form-control" placeholder="Ваше сообщение...">
+                <div class="input-group-append">
+                    <button class="btn" id="sendButton"><i class="fas fa-paper-plane"></i> Отправить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    let lastMessageId = 0;
+    const messagesDiv = $('#chatMessages');
+    const messageInput = $('#messageInput');
+    const sendButton = $('#sendButton');
+
+    function escapeHtml(text) {
+        return $('<div/>').text(text).html();
+    }
+
+    function formatTime(isoString) {
+        const date = new Date(isoString);
+        return date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    }
+
+    function addMessage(msg, isNew) {
+        const isMine = (msg.user_name === '{{ session.get("full_name") }}');
+        const messageDiv = $('<div>').addClass('message ' + (isMine ? 'message-mine' : 'message-other'));
+        messageDiv.html(`
+            <div>
+                <div class="message-info">
+                    <span>${escapeHtml(msg.user_name)}</span>
+                    <span>${formatTime(msg.datetime)}</span>
+                </div>
+                <div class="message-bubble">${escapeHtml(msg.message)}</div>
+            </div>
+        `);
+        messagesDiv.append(messageDiv);
+        if (isNew) messagesDiv.scrollTop(messagesDiv[0].scrollHeight);
+    }
+
+    function loadMessages() {
+        $.getJSON('/chat/api/messages?last_id=' + lastMessageId)
+            .done(function(messages) {
+                if (messages.length) {
+                    messages.forEach(msg => {
+                        if (msg.id > lastMessageId) {
+                            addMessage(msg, true);
+                            lastMessageId = msg.id;
+                        }
+                    });
+                }
+            })
+            .fail(function() { console.error('Ошибка загрузки сообщений'); });
+    }
+
+    function sendMessage() {
+        const message = messageInput.val().trim();
+        if (!message) return;
+        $.ajax({
+            url: '/chat/api/send',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ message: message }),
+            dataType: 'json'
+        })
+        .done(function(data) {
+            if (data.success) {
+                messageInput.val('');
+                loadMessages();
+            } else {
+                alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+            }
+        })
+        .fail(function() { alert('Ошибка соединения'); });
+    }
+
+    sendButton.click(sendMessage);
+    messageInput.keypress(function(e) { if (e.which == 13) sendMessage(); });
+    loadMessages();
+    setInterval(loadMessages, 2000);
+});
+</script>
+{% endblock %}

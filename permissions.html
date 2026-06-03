@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Управление правами доступа{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2><i class="fas fa-lock"></i> Управление правами доступа</h2>
+        <button class="btn btn-primary btn-sm" type="button" data-toggle="collapse" data-target="#addPermissionForm" aria-expanded="false">
+            <i class="fas fa-plus"></i> Добавить разрешение
+        </button>
+    </div>
+
+    <!-- Форма добавления нового разрешения (скрыта по умолчанию) -->
+    <div class="collapse mb-3" id="addPermissionForm">
+        <div class="card card-body">
+            <h5>Новое разрешение</h5>
+            <form method="POST" action="{{ url_for('admin.permission_add') }}" class="form-inline">
+                <div class="form-group mr-2 mb-2">
+                    <input type="text" name="name" class="form-control" placeholder="Код (например, view_production)" required>
+                </div>
+                <div class="form-group mr-2 mb-2">
+                    <input type="text" name="description" class="form-control" placeholder="Описание">
+                </div>
+                <button type="submit" class="btn btn-success btn-sm mb-2">Добавить</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-sm table-hover">
+            <thead class="thead-light">
+                <tr>
+                    <th style="min-width: 180px;">Разрешение</th>
+                    {% for role in roles %}
+                    <th class="text-center" style="white-space: nowrap;">{{ role.name }}</th>
+                    {% endfor %}
+                    <th style="width: 60px;">Удалить</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for perm in permissions %}
+                <tr>
+                    <td>
+                        <strong>{{ perm.name }}</strong>
+                        {% if perm.description %}
+                        <br><small class="text-muted">{{ perm.description }}</small>
+                        {% endif %}
+                    </td>
+                    {% for role in roles %}
+                    <td class="text-center align-middle" style="vertical-align: middle;">
+                        {% set has = perm.id in role_perms[role.id] %}
+                        <form method="POST" action="{{ url_for('admin.permission_toggle') }}" class="d-inline">
+                            <input type="hidden" name="role_id" value="{{ role.id }}">
+                            <input type="hidden" name="perm_id" value="{{ perm.id }}">
+                            <input type="hidden" name="action" value="{{ 'remove' if has else 'add' }}">
+                            <button type="submit" class="btn btn-sm {% if has %}btn-success{% else %}btn-outline-secondary{% endif %}" 
+                                    style="width: 32px; height: 32px; padding: 0; font-size: 0.9rem;">
+                                {% if has %}✅{% else %}⬜{% endif %}
+                            </button>
+                        </form>
+                    </td>
+                    {% endfor %}
+                    <td class="text-center align-middle">
+                        <form method="POST" action="{{ url_for('admin.permission_delete', perm_id=perm.id) }}" 
+                              onsubmit="return confirm('Удалить разрешение «{{ perm.name }}»? Это отвяжет его от всех ролей.')" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" style="width: 32px; height: 32px; padding: 0;">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if not permissions %}
+    <div class="alert alert-info">Разрешения пока не созданы. Используйте форму выше, чтобы добавить первое разрешение.</div>
+    {% endif %}
+</div>
+{% endblock %}

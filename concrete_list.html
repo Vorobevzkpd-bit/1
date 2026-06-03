@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Список протоколов испытаний бетона{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>🧪 Протоколы испытаний бетона на сжатие</h2>
+    <a href="{{ url_for('protocols.concrete_test') }}" class="btn btn-success"><i class="fas fa-plus"></i> Новый протокол</a>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-bordered">
+        <thead class="thead-light">
+            <tr>
+                <th>ID</th>
+                <th>№ протокола</th>
+                <th>Дата испытания</th>
+                <th>Класс бетона</th>
+                <th>Фактическая прочность</th>
+                <th>Заключение</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for test in tests %}
+            <tr>
+                <td>{{ test.id }}</td>
+                <td>{{ test.protocol_number }}</td>
+                <td>{{ test.test_date.strftime('%d.%m.%Y') if test.test_date else '—' }}</td>
+                <td>{{ test.concrete_class }}</td>
+                <td>{{ test.actual_strength|round(1) if test.actual_strength else '—' }} МПа</td>
+                <td>
+                    {% if test.conclusion == 'accepted' %}
+                        <span class="badge badge-success">Соответствует</span>
+                    {% else %}
+                        <span class="badge badge-danger">Не соответствует</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('protocols.view_concrete', doc_id=test.id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
+                    <a href="{{ url_for('protocols.concrete_edit', doc_id=test.id) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-edit"></i></a>
+                    <form method="POST" action="{{ url_for('protocols.concrete_delete', doc_id=test.id) }}" style="display:inline;" onsubmit="return confirm('Удалить протокол?')">
+                        <button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-center">Нет протоколов</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<a href="{{ url_for('main.index') }}" class="btn btn-secondary">← На главную</a>
+{% endblock %}

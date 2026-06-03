@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Паспорт качества №{{ passport.doc_number }}</title>
+</head>
+<body>
+    <h2>Паспорт качества</h2>
+    <p><strong>Номер:</strong> {{ passport.doc_number }}</p>
+    <p><strong>Дата:</strong> {{ passport.doc_date }}</p>
+    <p><strong>Изделие:</strong> {{ passport.product_name }}</p>
+    <p><strong>Серия чертежей:</strong> {{ passport.drawing_series }}</p>
+    <p><strong>Класс бетона:</strong> {{ passport.concrete_class }}</p>
+    <p><strong>Отпускная прочность:</strong> {{ passport.release_strength }}</p>
+    <p><strong>Фактическая прочность:</strong> {{ passport.actual_strength }}</p>
+    <p><strong>Категория поверхности:</strong> {{ passport.surface_category }}</p>
+    <p><strong>Масса:</strong> {{ passport.weight }}</p>
+    <p><strong>Морозостойкость:</strong> {{ passport.frost }}</p>
+    <p><strong>Водонепроницаемость:</strong> {{ passport.waterproof }}</p>
+    <p><strong>Счёт:</strong> {{ passport.account }}</p>
+    <p><strong>Количество:</strong> {{ passport.quantity }}</p>
+    <p><strong>Дополнительно:</strong> {{ passport.additional_info }}</p>
+    <br>
+    <a href="/quality/list">К списку</a> | <a href="/">На главную</a>
+</body>
+</html>

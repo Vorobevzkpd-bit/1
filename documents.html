@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Журнал документов (администрирование){% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Журнал документов</h2>
+        <div>
+            <a href="{{ url_for('admin.documents_export', search=search, doc_type=doc_type, date_from=date_from, date_to=date_to) }}" class="btn btn-success me-2">
+                📊 Экспорт в Excel
+            </a>
+            <form method="POST" action="{{ url_for('admin.documents_clear_all') }}" style="display:inline;" onsubmit="return confirm('Удалить все записи журнала? Это действие также удалит все связанные акты и данные со склада!');">
+                <button type="submit" class="btn btn-danger">🗑️ Очистить всё</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Форма фильтрации -->
+    <div class="card mb-3">
+        <div class="card-header bg-light">
+            <i class="fas fa-filter"></i> Фильтр
+        </div>
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Поиск по названию</label>
+                    <input type="text" name="search" class="form-control" placeholder="Введите текст..." value="{{ search }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Тип документа</label>
+                    <select name="doc_type" class="form-select">
+                        <option value="">Все</option>
+                        {% for dt in doc_types %}
+                        <option value="{{ dt }}" {% if doc_type == dt %}selected{% endif %}>{{ dt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Дата от</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Дата до</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">🔍 Искать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Результаты фильтрации -->
+    <div class="alert alert-info" role="alert">
+        Найдено записей: <strong>{{ logs.total }}</strong>
+        {% if search or doc_type or date_from or date_to %}
+            <a href="{{ url_for('admin.documents_journal') }}" class="ms-3">Сбросить фильтр</a>
+        {% endif %}
+    </div>
+
+    <!-- Таблица с записями -->
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Тип</th>
+                    <th>Название</th>
+                    <th>Пользователь</th>
+                    <th>Дата создания</th>
+                    <th>Партия</th>
+                    <th>Продукт</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs.items %}
+                <tr>
+                    <td>{{ log.id }}</td>
+                    <td><span class="badge bg-secondary">{{ log.doc_type }}</span></td>
+                    <td>{{ log.title }}</td>
+                    <td>{{ log.user.full_name if log.user else '—' }}</td>
+                    <td>{{ log.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                    <td>{{ log.batch_number or '—' }}</td>
+                    <td>{{ log.product_name or '—' }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('admin.document_delete', log_id=log.id) }}" style="display:inline;" onsubmit="return confirm('Удалить запись?');">
+                            <button type="submit" class="btn btn-sm btn-danger">🗑️ Удалить</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        Нет записей в журнале
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Пагинация -->
+    {% if pagination and pagination.pages > 1 %}
+    <nav>
+        <ul class="pagination justify-content-center">
+            {% if pagination.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('admin.documents_journal', page=pagination.prev_num, search=search, doc_type=doc_type, date_from=date_from, date_to=date_to) }}">← Предыдущая</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">← Предыдущая</span></li>
+            {% endif %}
+            
+            {% for p in pagination.iter_pages() %}
+                {% if p %}
+                    {% if p == pagination.page %}
+                    <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                    {% else %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.documents_journal', page=p, search=search, doc_type=doc_type, date_from=date_from, date_to=date_to) }}">{{ p }}</a>
+                    </li>
+                    {% endif %}
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if pagination.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('admin.documents_journal', page=pagination.next_num, search=search, doc_type=doc_type, date_from=date_from, date_to=date_to) }}">Следующая →</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Следующая →</span></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<style>
+    .badge {
+        font-size: 0.7rem;
+        padding: 3px 8px;
+    }
+    .table td {
+        vertical-align: middle;
+    }
+</style>
+{% endblock %}

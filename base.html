@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{% block title %}Департамент качества{% endblock %}</title>
+    
+    <link rel="icon" type="image/png" href="/static/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+    <link rel="shortcut icon" href="/static/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="ПСК" />
+    <link rel="manifest" href="/static/site.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body { background-color: #f8f9fc; padding-top: 56px; }
+        .navbar-top { position: fixed; top: 0; left: 0; right: 0; z-index: 1030; background: #f8f9fc; border-bottom: 1px solid #dee2e6; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+        .mobile-menu-btn { display: none; background: none; border: none; font-size: 1.6rem; color: #1e3c72; margin-right: 12px; cursor: pointer; }
+        .sidebar-mobile { position: fixed; top: 56px; left: -280px; width: 280px; bottom: 0; background: white; z-index: 1040; transition: left 0.3s ease; box-shadow: 2px 0 8px rgba(0,0,0,0.1); overflow-y: auto; padding: 16px 0; }
+        .sidebar-mobile.open { left: 0; }
+        .menu-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1035; display: none; }
+        .menu-overlay.open { display: block; }
+        .sidebar-desktop { position: fixed; top: 56px; bottom: 0; left: 0; width: 250px; background: white; border-right: 1px solid #dee2e6; overflow-y: auto; padding: 20px 0; z-index: 1020; }
+        main { margin-left: 250px; padding: 20px; transition: margin-left 0.2s; }
+        @media (max-width: 767.98px) {
+            .sidebar-desktop { display: none; }
+            .mobile-menu-btn { display: inline-block; }
+            main { margin-left: 0 !important; padding: 12px; }
+            body { padding-top: 56px; }
+            .btn, button, input, select, textarea { font-size: 16px !important; }
+            .form-control, .form-select { font-size: 16px !important; }
+        }
+        .nav-group-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6c757d;
+            padding: 8px 20px 4px 20px;
+            font-weight: 600;
+            border-bottom: 1px solid #e9ecef;
+            margin-top: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            user-select: none;
+        }
+        .nav-group-title i {
+            font-size: 0.7rem;
+            transition: transform 0.2s;
+        }
+        .nav-group-title.collapsed i {
+            transform: rotate(-90deg);
+        }
+        .nav-group-items {
+            list-style: none;
+            padding-left: 0;
+            margin-bottom: 0;
+        }
+        .nav-group-items.collapsed {
+            display: none;
+        }
+        .sidebar-desktop .nav-link, .sidebar-mobile .nav-link {
+            font-weight: 500;
+            color: #333;
+            padding: 10px 20px;
+        }
+        .sidebar-desktop .nav-link:hover, .sidebar-mobile .nav-link:hover {
+            background-color: #f0f0f0;
+            color: #0056b3;
+        }
+        .sidebar-desktop .nav-link.active, .sidebar-mobile .nav-link.active {
+            color: #007bff;
+            background-color: #e7f1ff;
+        }
+        .footer { text-align: center; padding: 10px; margin-top: 30px; font-size: 0.8rem; color: #6c757d; }
+        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .badge-notify {
+            background-color: #dc3545;
+            color: white;
+            border-radius: 20px;
+            padding: 2px 6px;
+            font-size: 0.7rem;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+    </style>
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+
+<nav class="navbar-top d-flex align-items-center justify-content-between px-3 py-2">
+    <div class="d-flex align-items-center">
+        <button class="mobile-menu-btn" id="mobileMenuToggle"><i class="fas fa-bars"></i></button>
+        <a class="navbar-brand" href="{{ url_for('main.index') }}"><img src="/static/logo%20psk.svg" alt="Логотип" height="35"></a>
+    </div>
+    <div class="d-flex align-items-center">
+        <span class="text-dark mr-3 d-none d-sm-inline"><i class="fas fa-user"></i> {{ session.get('full_name', 'Гость') }} <span class="badge badge-secondary">{{ session.get('role', '') }}</span></span>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-dark btn-sm"><i class="fas fa-sign-out-alt"></i> <span class="d-none d-sm-inline">Выйти</span></a>
+    </div>
+</nav>
+
+<div id="menuOverlay" class="menu-overlay" onclick="closeMobileMenu()"></div>
+
+<!-- Переменные для групп меню -->
+{% set qc_items = [
+    ('view_quality_passport', 'Паспорт качества', 'quality.quality_passport', 'fas fa-file-alt'),
+    ('view_defect_control', 'Приемочный контроль', 'control.defect_control', 'fas fa-clipboard-list'),
+    ('view_operational_control', 'Операционный контроль', 'control.operational_control', 'fas fa-clipboard-check')
+] %}
+{% set lab_items = [
+    ('view_rebar_test', 'Арматура (протокол)', 'protocols.rebar_test', 'fas fa-microscope'),
+    ('view_concrete_test', 'Бетон (протокол)', 'protocols.concrete_test', 'fas fa-flask')
+] %}
+{% set comm_items = [
+    ('view_chat', 'Общий чат', 'chat.chat', 'fas fa-comments', 'chatUnreadBadge'),
+    ('view_pm', 'Личные сообщения', 'chat.pm_inbox', 'fas fa-envelope', 'pmUnreadBadge')
+] %}
+{% set report_items = [
+    ('view_saved_documents', 'Журнал документов', 'documents.journal', 'fas fa-folder-open'),
+    ('view_defect_statistics', 'Статистика дефектов', 'control.defect_statistics', 'fas fa-chart-pie'),
+    ('view_defect_control', 'Принято за сутки', 'control.accepted_report', 'fas fa-check-circle')
+] %}
+{% set warehouse_items = [
+    ('view_warehouse', 'Сотрудники', 'warehouse_ppe.employees_list', 'fas fa-users'),
+    ('view_warehouse', 'Справочник предметов', 'warehouse_ppe.items_list', 'fas fa-boxes'),
+    ('view_warehouse', 'Нормы выдачи', 'warehouse_ppe.norms_list', 'fas fa-clipboard-list'),
+    ('view_warehouse', 'Журнал операций', 'warehouse_ppe.journal', 'fas fa-book')
+] %}
+{% set admin_items = [
+    ('manage_users', 'Пользователи', 'admin.users_list', 'fas fa-users-cog'),
+    ('manage_roles', 'Роли и права', 'admin.permissions_list', 'fas fa-lock'),
+    ('manage_documents', 'Журнал (админ)', 'admin.documents_journal', 'fas fa-file-alt'),
+    ('manage_invoices', 'Импорт счетов (Excel)', 'invoice.admin_import', 'fas fa-file-import'),
+    ('manage_email_settings', 'Настройки Email', 'email.settings', 'fas fa-envelope'),
+    ('manage_work_centers', 'Участки', 'admin.work_centers_list', 'fas fa-industry')
+] %}
+{% set production_items = [
+    ('view_production_schedule', 'График формовки', 'production.schedule', 'fas fa-calendar-alt'),
+    ('view_production_schedule', 'Список задач', 'production.task_list', 'fas fa-tasks'),
+    ('view_production_schedule', 'Задание на смену', 'production.daily_task', 'fas fa-clipboard-list')
+] %}
+
+<!-- Мобильное меню -->
+<div id="mobileSidebar" class="sidebar-mobile">
+    <ul class="nav flex-column">
+        {% if has_permission('view_index') %}
+        <li class="nav-item"><a class="nav-link {% if request.endpoint == 'main.index' %}active{% endif %}" href="{{ url_for('main.index') }}"><i class="fas fa-tachometer-alt"></i> Главная</a></li>
+        {% endif %}
+
+        <!-- Контроль качества -->
+        {% if has_any_permission(['view_quality_passport', 'view_defect_control', 'view_operational_control']) %}
+        <li class="nav-group-title" data-group="qualityControlMobile">
+            <span><i class="fas fa-check-circle"></i> Контроль качества</span>
+            <i class="fas fa-chevron-down"></i>
+        </li>
+        <ul class="nav-group-items collapsed" id="group-qualityControlMobile">
+            {% for perm, label, endpoint, icon in qc_items %}
+                {% if has_permission(perm) %}
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}"><i class="{{ icon }}"></i> {{ label }}</a></li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Лаборатория -->
+        {% if has_any_permission(['view_rebar_test', 'view_concrete_test']) %}
+        <li class="nav-group-title" data-group="laboratoryMobile">
+            <span><i class="fas fa-flask"></i> Лаборатория</span>
+            <i class="fas fa-chevron-down"></i>
+        </li>
+        <ul class="nav-group-items collapsed" id="group-laboratoryMobile">
+            {% for perm, label, endpoint, icon in lab_items %}
+                {% if has_permission(perm) %}
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}"><i class="{{ icon }}"></i> {{ label }}</a></li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Склад готовой продукции -->
+        {% if has_permission('view_finished_goods') %}
+        <li class="nav-group-title" data-group="finishedGoodsMobile">
+            <span><i class="fas fa-boxes"></i> Склад готовой продукции</span>
+            <i class="fas fa-chevron-down"></i>
+        </li>
+        <ul class="nav-group-items collapsed" id="group-finishedGoodsMobile">
+            {% if has_permission('view_finished_goods') %}
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.stock_overview' %}active{% endif %}" href="{{ url_for('finished_goods.stock_overview') }}"><i class="fas fa-clipboard-list"></i> Обзор склада</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.batches_list' %}active{% endif %}" href="{{ url_for('finished_goods.batches_list') }}"><i class="fas fa-layer-group"></i> Партии (FIFO)</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.movements' %}active{% endif %}" href="{{ url_for('finished_goods.movements') }}"><i class="fas fa-history"></i> Журнал движений</a></li>
+            {% endif %}
+            {% if has_permission('manage_finished_goods') %}
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.add_receipt' %}active{% endif %}" href="{{ url_for('finished_goods.add_receipt') }}"><i class="fas fa-plus-circle"></i> Приход</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.reserve' %}active{% endif %}" href="{{ url_for('finished_goods.reserve') }}"><i class="fas fa-lock"></i> Бронирование</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.reserved_list' %}active{% endif %}" href="{{ url_for('finished_goods.reserved_list') }}"><i class="fas fa-bookmark"></i> Забронировано</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.ship' %}active{% endif %}" href="{{ url_for('finished_goods.ship') }}"><i class="fas fa-truck"></i> Отгрузка</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.shipment_report' %}active{% endif %}" href="{{ url_for('finished_goods.shipment_report') }}"><i class="fas fa-chart-line"></i> Отчёт по отгрузкам</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.reject_warehouse_list' %}active{% endif %}" href="{{ url_for('finished_goods.reject_warehouse_list') }}"><i class="fas fa-dumpster"></i> Склад брака</a></li>
+            {% endif %}
+        </ul>
+        {% endif %}
+
+        <!-- Склад СИЗ -->
+        {% if has_permission('view_warehouse') %}
+        <li class="nav-group-title" data-group="warehouseMobile">
+            <span><i class="fas fa-warehouse"></i> Склад СИЗ</span>
+            <i class="fas fa-chevron-down"></i>
+        </li>
+        <ul class="nav-group-items collapsed" id="group-warehouseMobile">
+            {% for perm, label, endpoint, icon in warehouse_items %}
+                {% if has_permission(perm) %}
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}"><i class="{{ icon }}"></i> {{ label }}</a></li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Производство -->
+        {% if has_any_permission(['view_production_schedule', 'edit_production_schedule']) %}
+        <li class="nav-group-title" data-group="productionMobile">
+            <span><i class="fas fa-industry"></i> Производство</span>
+            <i class="fas fa-chevron-down"></i>
+        </li>
+        <ul class="nav-group-items collapsed" id="group-productionMobile">
+            {% for perm, label, endpoint, icon in production_items %}
+                {% if has_permission(perm) %}
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}"><i class="{{ icon }}"></i> {{ label }}</a></li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Отчёты -->
+        {% if has_any_permission(['view_saved_documents', 'view_defect_statistics', 'view_defect_control']) %}
+        <li class="nav-group-title" data-group="reportsMobile">
+            <span><i class="fas fa-chart-line"></i> Отчёты</span>
+            <i class="fas fa-chevron-down"></i>
+        </li>
+        <ul class="nav-group-items collapsed" id="group-reportsMobile">
+            {% for perm, label, endpoint, icon in report_items %}
+                {% if has_permission(perm) %}
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}"><i class="{{ icon }}"></i> {{ label }}</a></li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Коммуникация -->
+        {% if has_any_permission(['view_chat', 'view_pm']) %}
+        <li class="nav-group-title" data-group="communicationMobile">
+            <span><i class="fas fa-comments"></i> Коммуникация</span>
+            <i class="fas fa-chevron-down"></i>
+        </li>
+        <ul class="nav-group-items collapsed" id="group-communicationMobile">
+            {% for perm, label, endpoint, icon, badge_id in comm_items %}
+                {% if has_permission(perm) %}
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}"><i class="{{ icon }}"></i> {{ label }} <span id="{{ badge_id }}Mobile" class="badge badge-notify" style="display: none;">0</span></a></li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Управление (администрирование) -->
+        {% if has_any_permission(['manage_users', 'manage_roles', 'manage_documents', 'manage_invoices', 'manage_email_settings', 'manage_work_centers']) %}
+        <li class="nav-group-title" data-group="adminMobile">
+            <span><i class="fas fa-cog"></i> Управление</span>
+            <i class="fas fa-chevron-down"></i>
+        </li>
+        <ul class="nav-group-items collapsed" id="group-adminMobile">
+            {% for perm, label, endpoint, icon in admin_items %}
+                {% if has_permission(perm) %}
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}"><i class="{{ icon }}"></i> {{ label }}</a></li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </ul>
+    <div class="text-center mt-3 small text-muted d-sm-none">{{ session.get('full_name', 'Гость') }} ({{ session.get('role', '') }})</div>
+</div>
+
+<!-- Десктопное меню -->
+<div class="sidebar-desktop d-none d-md-block">
+    <ul class="nav flex-column">
+        {% if has_permission('view_index') %}
+        <li class="nav-item"><a class="nav-link {% if request.endpoint == 'main.index' %}active{% endif %}" href="{{ url_for('main.index') }}"><i class="fas fa-tachometer-alt"></i> Главная</a></li>
+        {% endif %}
+
+        <!-- Контроль качества -->
+        {% if has_any_permission(['view_quality_passport', 'view_defect_control', 'view_operational_control']) %}
+        <li class="nav-group-title" data-group="qualityControlDesktop">
+            <span><i class="fas fa-check-circle"></i> Контроль качества</span>
+            <i class="fas fa-chevron-down"></i>
+        </li>
+        <ul class="nav-group-items collapsed" id="group-qualityControlDesktop">
+            {% for perm, label, endpoint, icon in qc_items %}
+                {% if has_permission(perm) %}
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}"><i class="{{ icon }}"></i> {{ label }}</a></li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Лаборатория -->
+        {% if has_any_permission(['view_rebar_test', 'view_concrete_test']) %}
+        <li class="nav-group-title" data-group="laboratoryDesktop">
+            <span><i class="fas fa-flask"></i> Лаборатория</span>
+            <i class="fas fa-chevron-down"></i>
+        </li>
+        <ul class="nav-group-items collapsed" id="group-laboratoryDesktop">
+            {% for perm, label, endpoint, icon in lab_items %}
+                {% if has_permission(perm) %}
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}"><i class="{{ icon }}"></i> {{ label }}</a></li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Склад готовой продукции -->
+        {% if has_permission('view_finished_goods') %}
+        <li class="nav-group-title" data-group="finishedGoodsDesktop">
+            <span><i class="fas fa-boxes"></i> Склад готовой продукции</span>
+            <i class="fas fa-chevron-down"></i>
+        </li>
+        <ul class="nav-group-items collapsed" id="group-finishedGoodsDesktop">
+            {% if has_permission('view_finished_goods') %}
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.stock_overview' %}active{% endif %}" href="{{ url_for('finished_goods.stock_overview') }}"><i class="fas fa-clipboard-list"></i> Обзор склада</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.batches_list' %}active{% endif %}" href="{{ url_for('finished_goods.batches_list') }}"><i class="fas fa-layer-group"></i> Партии (FIFO)</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.movements' %}active{% endif %}" href="{{ url_for('finished_goods.movements') }}"><i class="fas fa-history"></i> Журнал движений</a></li>
+            {% endif %}
+            {% if has_permission('manage_finished_goods') %}
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.add_receipt' %}active{% endif %}" href="{{ url_for('finished_goods.add_receipt') }}"><i class="fas fa-plus-circle"></i> Приход</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.reserve' %}active{% endif %}" href="{{ url_for('finished_goods.reserve') }}"><i class="fas fa-lock"></i> Бронирование</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.reserved_list' %}active{% endif %}" href="{{ url_for('finished_goods.reserved_list') }}"><i class="fas fa-bookmark"></i> Забронировано</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.ship' %}active{% endif %}" href="{{ url_for('finished_goods.ship') }}"><i class="fas fa-truck"></i> Отгрузка</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.shipment_report' %}active{% endif %}" href="{{ url_for('finished_goods.shipment_report') }}"><i class="fas fa-chart-line"></i> Отчёт по отгрузкам</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'finished_goods.reject_warehouse_list' %}active{% endif %}" href="{{ url_for('finished_goods.reject_warehouse_list') }}"><i class="fas fa-dumpster"></i> Склад брака</a></li>
+            {% endif %}
+        </ul>
+        {% endif %}
+
+        <!-- Склад СИЗ -->
+        {% if has_permission('view_warehouse') %}
+        <li class="nav-group-title" data-group="warehouseDesktop">
+            <span><i class="fas fa-warehouse"></i> Склад СИЗ</span>
+            <i class="fas fa-chevron-down"></i>
+        </li>
+        <ul class="nav-group-items collapsed" id="group-warehouseDesktop">
+            {% for perm, label, endpoint, icon in warehouse_items %}
+                {% if has_permission(perm) %}
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}"><i class="{{ icon }}"></i> {{ label }}</a></li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Производство -->
+        {% if has_any_permission(['view_production_schedule', 'edit_production_schedule']) %}
+        <li class="nav-group-title" data-group="productionDesktop">
+            <span><i class="fas fa-industry"></i> Производство</span>
+            <i class="fas fa-chevron-down"></i>
+        </li>
+        <ul class="nav-group-items collapsed" id="group-productionDesktop">
+            {% for perm, label, endpoint, icon in production_items %}
+                {% if has_permission(perm) %}
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}"><i class="{{ icon }}"></i> {{ label }}</a></li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Отчёты -->
+        {% if has_any_permission(['view_saved_documents', 'view_defect_statistics', 'view_defect_control']) %}
+        <li class="nav-group-title" data-group="reportsDesktop">
+            <span><i class="fas fa-chart-line"></i> Отчёты</span>
+            <i class="fas fa-chevron-down"></i>
+        </li>
+        <ul class="nav-group-items collapsed" id="group-reportsDesktop">
+            {% for perm, label, endpoint, icon in report_items %}
+                {% if has_permission(perm) %}
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}"><i class="{{ icon }}"></i> {{ label }}</a></li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Коммуникация -->
+        {% if has_any_permission(['view_chat', 'view_pm']) %}
+        <li class="nav-group-title" data-group="communicationDesktop">
+            <span><i class="fas fa-comments"></i> Коммуникация</span>
+            <i class="fas fa-chevron-down"></i>
+        </li>
+        <ul class="nav-group-items collapsed" id="group-communicationDesktop">
+            {% for perm, label, endpoint, icon, badge_id in comm_items %}
+                {% if has_permission(perm) %}
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}"><i class="{{ icon }}"></i> {{ label }} <span id="{{ badge_id }}Desktop" class="badge badge-notify" style="display: none;">0</span></a></li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Управление (администрирование) -->
+        {% if has_any_permission(['manage_users', 'manage_roles', 'manage_documents', 'manage_invoices', 'manage_email_settings', 'manage_work_centers']) %}
+        <li class="nav-group-title" data-group="adminDesktop">
+            <span><i class="fas fa-cog"></i> Управление</span>
+            <i class="fas fa-chevron-down"></i>
+        </li>
+        <ul class="nav-group-items collapsed" id="group-adminDesktop">
+            {% for perm, label, endpoint, icon in admin_items %}
+                {% if has_permission(perm) %}
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}"><i class="{{ icon }}"></i> {{ label }}</a></li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </ul>
+</div>
+
+<main role="main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}<div class="mt-2">{% for category, message in messages %}<div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">{{ message }}<button type="button" class="close" data-dismiss="alert">&times;</button></div>{% endfor %}</div>{% endif %}
+    {% endwith %}
+    <div class="content-wrapper">{% block content %}{% endblock %}</div>
+</main>
+
+<div class="footer"><hr><span>&copy; 2026 Департамент качества</span></div>
+
+<div id="notificationBanner" style="position: fixed; bottom: 20px; right: 20px; z-index: 1050; display: none; background: #007bff; color: white; padding: 10px 20px; border-radius: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); cursor: pointer; font-size: 14px; align-items: center; gap: 8px;">
+    <i class="fas fa-comment-dots"></i> <span id="bannerUnreadCount">0</span> новых сообщений
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const mobileMenu = document.getElementById('mobileSidebar');
+    const overlay = document.getElementById('menuOverlay');
+    const toggleBtn = document.getElementById('mobileMenuToggle');
+    function openMobileMenu() { mobileMenu.classList.add('open'); overlay.classList.add('open'); document.body.style.overflow = 'hidden'; }
+    function closeMobileMenu() { mobileMenu.classList.remove('open'); overlay.classList.remove('open'); document.body.style.overflow = ''; }
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (mobileMenu.classList.contains('open')) closeMobileMenu();
+            else openMobileMenu();
+        });
+    }
+    overlay.addEventListener('click', closeMobileMenu);
+    document.querySelectorAll('#mobileSidebar .nav-link').forEach(link => link.addEventListener('click', closeMobileMenu));
+    window.addEventListener('resize', function() {
+        if (window.innerWidth >= 768 && mobileMenu.classList.contains('open')) closeMobileMenu();
+    });
+
+    function initCollapsibleGroups() {
+        const groupTitles = document.querySelectorAll('.nav-group-title');
+        groupTitles.forEach(title => {
+            const groupKey = title.getAttribute('data-group');
+            const itemsContainer = document.getElementById(`group-${groupKey}`);
+            if (!itemsContainer) return;
+            title.classList.add('collapsed');
+            itemsContainer.classList.add('collapsed');
+            title.addEventListener('click', function(e) {
+                e.stopPropagation();
+                title.classList.toggle('collapsed');
+                itemsContainer.classList.toggle('collapsed');
+            });
+        });
+    }
+    document.addEventListener('DOMContentLoaded', initCollapsibleGroups);
+    
+    function updateUnreadCounters() {
+        // Общий чат
+        fetch('/chat/api/chat/unread_count')
+            .then(r => r.json())
+            .then(d => {
+                const cnt = d.unread || 0;
+                ['Mobile', 'Desktop'].forEach(t => {
+                    const b = document.getElementById('chatUnreadBadge' + t);
+                    if (b) {
+                        if (cnt > 0) {
+                            b.textContent = cnt > 99 ? '99+' : cnt;
+                            b.style.display = 'inline-block';
+                        } else {
+                            b.style.display = 'none';
+                        }
+                    }
+                });
+            })
+            .catch(e => console.warn(e));
+        
+        // Личные сообщения
+        fetch('/chat/api/pm/unread_total')
+            .then(r => r.json())
+            .then(d => {
+                const cnt = d.total || 0;
+                ['Mobile', 'Desktop'].forEach(t => {
+                    const b = document.getElementById('pmUnreadBadge' + t);
+                    if (b) {
+                        if (cnt > 0) {
+                            b.textContent = cnt > 99 ? '99+' : cnt;
+                            b.style.display = 'inline-block';
+                        } else {
+                            b.style.display = 'none';
+                        }
+                    }
+                });
+                const total = cnt;
+                const banner = document.getElementById('notificationBanner');
+                const bannerCount = document.getElementById('bannerUnreadCount');
+                if (total > 0) {
+                    bannerCount.innerText = total;
+                    banner.style.display = 'flex';
+                } else {
+                    banner.style.display = 'none';
+                }
+            })
+            .catch(e => console.warn(e));
+    }
+    updateUnreadCounters();
+    setInterval(updateUnreadCounters, 15000);
+    document.getElementById('notificationBanner')?.addEventListener('click', () => {
+        window.location.href = "{{ url_for('chat.pm_inbox') }}";
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Личные сообщения{% endblock %}
+
+{% block head_extra %}
+<style>
+    .conversation-item {
+        transition: background 0.2s;
+        border-left: 4px solid transparent;
+        background: white;
+    }
+    .conversation-item:hover {
+        background: #f8f9fa;
+        border-left-color: #007bff;
+    }
+    .unread-badge {
+        background: #dc3545;
+        color: white;
+        border-radius: 20px;
+        padding: 2px 8px;
+        font-size: 0.7rem;
+        font-weight: bold;
+    }
+    .conversation-name {
+        color: #212529;
+    }
+    .conversation-last {
+        color: #6c757d;
+    }
+    .btn-new {
+        border-radius: 30px;
+        background: white;
+        color: #212529;
+        border: 1px solid #dee2e6;
+        padding: 8px 20px;
+        transition: all 0.2s;
+    }
+    .btn-new:hover {
+        background: #f8f9fa;
+        color: #212529;
+    }
+    @media (max-width: 768px) {
+        .conversation-item { padding: 0.75rem !important; }
+        .conversation-name { font-size: 0.9rem; }
+        .conversation-last { font-size: 0.75rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-3" style="color: #212529;"><i class="fas fa-envelope"></i> Личные сообщения</h2>
+    <div id="conversationsList" class="list-group mb-3">
+        {% for conv in conversations %}
+        <a href="{{ url_for('chat.pm_conversation', user_id=conv.user.id) }}" class="list-group-item list-group-item-action conversation-item">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong class="conversation-name">{{ conv.user.full_name }}</strong>
+                    {% if conv.unread > 0 %}
+                        <span class="unread-badge ml-2">{{ conv.unread }}</span>
+                    {% endif %}
+                    <br>
+                    <small class="conversation-last">{{ conv.last_message|truncate(50) }}</small>
+                </div>
+                <small class="text-muted">{{ conv.last_date.strftime('%d.%m.%Y %H:%M') }}</small>
+            </div>
+        </a>
+        {% else %}
+        <div class="alert alert-info">Нет диалогов</div>
+        {% endfor %}
+    </div>
+    <div class="text-center">
+        <button type="button" class="btn btn-new" data-toggle="modal" data-target="#newPmModal">
+            <i class="fas fa-plus"></i> Новое сообщение
+        </button>
+    </div>
+</div>
+
+<div class="modal fade" id="newPmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">✉️ Новое сообщение</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Получатель</label>
+                    <select id="pmUserSelect" class="form-control">
+                        <option value="">-- загрузка... --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Сообщение</label>
+                    <textarea id="pmMessage" class="form-control" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" id="sendPmBtn">Отправить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    function loadUsers() {
+        const select = $('#pmUserSelect');
+        select.html('<option value="">-- загрузка... --</option>');
+        $.getJSON('/chat/api/users')
+            .done(function(users) {
+                if (users.length === 0) {
+                    select.html('<option value="">-- нет других пользователей --</option>');
+                } else {
+                    let options = '<option value="">-- выберите --</option>';
+                    $.each(users, function(i, user) {
+                        options += `<option value="${user.id}">${escapeHtml(user.full_name)}</option>`;
+                    });
+                    select.html(options);
+                }
+            })
+            .fail(function() {
+                select.html('<option value="">-- ошибка загрузки --</option>');
+                console.error('Ошибка загрузки пользователей');
+            });
+    }
+
+    $('#newPmModal').on('show.bs.modal', function() {
+        loadUsers();
+        $('#pmMessage').val('');
+    });
+
+    $('#sendPmBtn').click(function() {
+        const toUserId = $('#pmUserSelect').val();
+        const message = $('#pmMessage').val().trim();
+        if (!toUserId || !message) {
+            alert('Выберите получателя и введите сообщение');
+            return;
+        }
+        $.ajax({
+            url: '/chat/api/pm/send',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ to_user_id: parseInt(toUserId), message: message }),
+            dataType: 'json'
+        })
+        .done(function(data) {
+            if (data.success) {
+                alert('Сообщение отправлено');
+                $('#newPmModal').modal('hide');
+                location.reload(); // обновить список диалогов
+            } else {
+                alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+            }
+        })
+        .fail(function() {
+            alert('Ошибка соединения');
+        });
+    });
+
+    function escapeHtml(text) {
+        return $('<div/>').text(text).html();
+    }
+});
+</script>
+{% endblock %}

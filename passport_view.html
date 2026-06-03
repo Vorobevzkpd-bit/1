@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Просмотр паспорта качества №{{ passport.doc_number }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    @media print {
+        .no-print { display: none !important; }
+        .passport-container { margin: 0; padding: 0; }
+        .passport-card { border: none; padding: 0; }
+    }
+    .passport-container { max-width: 1000px; margin: 0 auto; background: white; }
+    .passport-card { background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 25px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.05); }
+    .passport-header-template { margin-bottom: 20px; }
+    .doc-title { font-size: 1.4rem; font-weight: bold; margin: 10px 0; border-bottom: 2px solid black; padding-bottom: 5px; text-align: center; }
+    .doc-title span { font-weight: normal; font-size: 0.9rem; }
+    .passport-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+    .passport-table td { border: 1px solid #ddd; padding: 8px; vertical-align: top; }
+    .passport-table td:first-child { font-weight: bold; width: 35%; background: #f1f1f1; }
+    .guarantee-block { border: 1px solid #ddd; padding: 12px; margin: 15px 0; background: #fafafa; text-align: center; font-size: 0.9rem; }
+    .signature { display: flex; justify-content: space-between; margin-top: 20px; flex-wrap: wrap; gap: 15px; }
+    .signature-item { min-width: 180px; }
+    .signature-item .underline { border-bottom: 1px solid black; margin-top: 5px; min-height: 24px; }
+    .btn-group { display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 20px; }
+    .logo-img { max-width: 100%; height: auto; display: block; margin: 0 auto 15px auto; }
+
+    @media (max-width: 767.98px) {
+        .passport-card { padding: 12px; }
+        .doc-title { font-size: 1.1rem; }
+        .doc-title span { font-size: 0.7rem; display: block; margin-top: 4px; }
+        .passport-table td { padding: 6px 4px; font-size: 0.75rem; }
+        .passport-table td:first-child { width: 40%; }
+        .guarantee-block { font-size: 0.7rem; padding: 8px; }
+        .signature-item { min-width: 140px; font-size: 0.75rem; }
+        .btn-group { flex-direction: column; gap: 8px; }
+        .btn-group .btn { width: 100%; margin: 0; }
+        .logo-img { max-width: 80%; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="passport-container">
+    <div class="btn-group no-print">
+        <button class="btn btn-secondary" onclick="window.history.back()">← Назад</button>
+        <button class="btn btn-primary" onclick="window.print()">🖨️ Печать</button>
+    </div>
+
+    <div class="passport-card">
+        {% set logo_path = '/static/PSK.png' if passport.logo_type == 'psk' else '/static/K33.png' %}
+        <div class="passport-header-template">
+            <div style="text-align: center; margin-bottom: 15px;">
+                <img src="{{ logo_path }}" alt="Логотип" class="logo-img" style="width: 100%;">
+            </div>
+            <div class="doc-title">
+                ДОКУМЕНТ О КАЧЕСТВЕ
+                <span>№{{ passport.doc_number or '—' }}  Выдан {{ passport.doc_date.replace('-', ' ') if passport.doc_date else '—' }}</span>
+            </div>
+        </div>
+
+        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+            <table class="passport-table">
+                <tr><td>Наименование изделий</td><td>{{ passport.product_name or '—' }}</td></tr>
+                <tr><td>Обозначение стандарта</td><td>ГОСТ13015-2012</td></tr>
+                <tr><td>Номер серии рабочих чертежей</td><td>{{ passport.drawing_series or '—' }}</td></tr>
+                <tr><td>Марка, количество, номер, дата изготовления изделий</td><td>{{ passport.items_list or '—'|safe }}</td></tr>
+                <tr><td>Проектный класс бетона по прочности и требуемая прочность в проектном возрасте</td><td>{{ passport.concrete_class or '—' }}  Rt={{ passport.required_strength or '—' }} МПа</td></tr>
+                <tr><td>Отпускная прочность изделия / Фактическая прочность изделия</td><td>{{ passport.release_strength or '—' }} / {{ passport.actual_strength or '—' }} МПа</td></tr>
+                <tr><td>Категория бетонной поверхности</td><td>{{ passport.surface_category or '—' }}</td></tr>
+                <tr><td>Масса единицы изделия, т</td><td>{{ passport.weight or '—' }}</td></tr>
+                <tr><td>Марка бетона по морозостойкости</td><td>{{ passport.frost or '—' }}</td></tr>
+                <tr><td>Марка бетона по водонепроницаемости</td><td>{{ passport.waterproof or '—' }}</td></tr>
+                <tr><td>Класс удельной эффективной активности естественных радионуклидов</td><td>I (до 370 Бк/кг)</td></tr>
+                {% if passport.additional_info %}
+                <tr><td>Дополнительные сведения</td><td>{{ passport.additional_info|replace('\n', '<br>')|safe }}</td></tr>
+                {% endif %}
+            </table>
+        </div>
+
+        <div class="guarantee-block">
+            Предприятие изготовитель гарантирует, что бетон изделий достигнет требуемой прочности в проектном возрасте при условии его твердения в нормальных условиях по ГОСТ 10180-2012.<br><br>
+            Предприятие изготовитель гарантирует соответствие изделий требованиям ГОСТ 13015-2012 и нормативно технической документации при соблюдении потребителем правил транспортировки, условий складирования, хранения и применения.<br><br>
+            Допускается применение изделий в условиях воздействия антигололедных реагентов, только при устройстве вторичной защиты бетона изделий согласно ГОСТ 31384-2017, СП 28.13330.2017, ОДМ 218.3.095-2017.
+        </div>
+
+        <div class="signature">
+            <div class="signature-item">
+                <div style="font-weight:bold;">Начальник ОТК</div>
+                <div class="underline">Голубева В.Ю.</div>
+            </div>
+            {% if passport.responsible and passport.responsible != '' %}
+            <div class="signature-item">
+                <div style="font-weight:bold;">Мостовой инспектор</div>
+                <div class="underline">{{ passport.responsible }}</div>
+            </div>
+            {% endif %}
+            <div class="signature-item">
+                <div style="font-weight:bold;">М.П.</div>
+                <div class="underline" style="border-bottom:none; min-height:25px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

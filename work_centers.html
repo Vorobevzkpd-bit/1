@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Управление участками{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Участки</h2>
+        <a href="{{ url_for('admin.work_center_add') }}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Добавить участок
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <i class="fas fa-industry"></i> Список участков
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Название</th>
+                            <th>Описание</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for wc in work_centers %}
+                        <tr>
+                            <td>{{ wc.id }}</td
+                            <td><strong>{{ wc.name }}</strong></td>
+                            <td>{{ wc.description or '—' }}</td
+                            <td>
+                                <a href="{{ url_for('admin.work_center_edit', work_center_id=wc.id) }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-edit"></i> Редактировать
+                                </a>
+                                <form method="POST" action="{{ url_for('admin.work_center_delete', work_center_id=wc.id) }}" style="display:inline;" 
+                                      onsubmit="return confirm('Удалить участок «{{ wc.name }}»?');">
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="fas fa-trash"></i> Удалить
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">
+                                Нет добавленных участков
+                            </td
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

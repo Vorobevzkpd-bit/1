@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Отгрузка готовой продукции{% endblock %}
+{% block content %}
+<h2>📤 Отгрузка готовой продукции</h2>
+
+<ul class="nav nav-tabs mb-3" id="shipTab" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link active" id="free-tab" data-toggle="tab" href="#free" role="tab">Отгрузка из свободного остатка</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="reserve-tab" data-toggle="tab" href="#reserve" role="tab">Отгрузка из резерва</a>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <!-- Вкладка: свободный остаток -->
+    <div class="tab-pane fade show active" id="free" role="tabpanel">
+        <form method="POST">
+            <input type="hidden" name="reservation_id" value="">
+            <div class="form-group">
+                <label>Продукт <span class="text-danger">*</span></label>
+                <select name="product_id" class="form-control" required>
+                    <option value="">-- выберите --</option>
+                    {% for p in products %}
+                    <option value="{{ p[0] }}">{{ p[1] }} (свободно: {{ (p[2]|default(0) - p[3]|default(0))|round(3) }} / всего: {{ p[2]|default(0)|round(3) }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Количество <span class="text-danger">*</span></label>
+                <input type="number" name="quantity" class="form-control" step="0.01" min="0.01" required>
+            </div>
+            <div class="form-group">
+                <label>Заказчик</label>
+                <input type="text" name="customer" class="form-control" placeholder="Наименование организации или ФИО">
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-truck"></i> Отгрузить</button>
+        </form>
+    </div>
+
+    <!-- Вкладка: отгрузка из резерва -->
+    <div class="tab-pane fade" id="reserve" role="tabpanel">
+        <form method="POST">
+            <div class="form-group">
+                <label>Резерв <span class="text-danger">*</span></label>
+                <select name="reservation_id" class="form-control" required>
+                    <option value="">-- выберите резерв --</option>
+                    {% for r in reservations %}
+                    <option value="{{ r[0] }}">{{ r[1] }} — {{ r[2]|default(0)|round(3) }} шт. (заказ: {{ r[3] }}{% if r[4] %}, истекает: {{ r[4][:10] }}{% endif %})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Количество <span class="text-danger">*</span></label>
+                <input type="number" name="quantity" class="form-control" step="0.01" min="0.01" required>
+            </div>
+            <div class="form-group">
+                <label>Заказчик (уточнение)</label>
+                <input type="text" name="customer" class="form-control" placeholder="Заказчик (дополнительно)">
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-truck"></i> Отгрузить из резерва</button>
+        </form>
+    </div>
+</div>
+
+<hr>
+<a href="{{ url_for('finished_goods.stock_overview') }}" class="btn btn-secondary">← Назад</a>
+<a href="{{ url_for('finished_goods.reserved_list') }}" class="btn btn-outline-info">Управление резервами</a>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Управление пользователями{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>👥 Пользователи</h2>
+    <a href="{{ url_for('admin.user_add') }}" class="btn btn-success"><i class="fas fa-plus"></i> Добавить</a>
+</div>
+<div class="table-responsive">
+    <table class="table table-bordered table-hover">
+        <thead class="thead-light">
+            <tr><th>ID</th><th>ФИО</th><th>Роль</th><th>Защищён</th><th>Действия</th></tr>
+        </thead>
+        <tbody>
+        {% for user in users %}
+        <tr>
+            <td>{{ user.id }}</td>
+            <td>{{ user.full_name }}</td>
+            <td>{{ user.role.name if user.role else '—' }}</td>
+            <td>{% if user.is_protected %}✅{% else %}—{% endif %}</td>
+            <td>
+                <a href="{{ url_for('admin.user_edit', user_id=user.id) }}" class="btn btn-sm btn-primary"><i class="fas fa-edit"></i></a>
+                {% if not user.is_protected %}
+                <form method="POST" action="{{ url_for('admin.user_delete', user_id=user.id) }}" style="display:inline;" onsubmit="return confirm('Удалить пользователя?')">
+                    <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

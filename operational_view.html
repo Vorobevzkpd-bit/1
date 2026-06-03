@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Акт операционного контроля №{{ report.id }}</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 16px; background: #f5f7fb; }
+        .container { max-width: 900px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 24px; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #1e3c72; padding-bottom: 15px; }
+        .header h2 { color: #1e3c72; margin-bottom: 5px; font-size: 1.5rem; }
+        .info-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .info-table td { padding: 10px 8px; border-bottom: 1px solid #e0e4e8; vertical-align: top; }
+        .info-table td:first-child { font-weight: bold; width: 180px; background: #f8f9fc; }
+        .photos { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px; }
+        .photos img { max-width: 200px; max-height: 200px; border-radius: 12px; border: 1px solid #ccc; object-fit: cover; }
+        .no-photo { color: #999; font-style: italic; }
+        .btn { display: inline-block; background: #1e3c72; color: white; border: none; padding: 8px 16px; border-radius: 40px; text-decoration: none; font-size: 14px; cursor: pointer; margin-right: 10px; }
+        .btn:hover { background: #0f2a4f; }
+        .print-btn { background: #28a745; }
+        .back-link { background: #6c757d; }
+        .footer { margin-top: 25px; text-align: center; color: #6c7a89; font-size: 12px; border-top: 1px solid #e0e4e8; padding-top: 15px; }
+        @media print { body { background: white; margin: 0; padding: 0; } .container { box-shadow: none; padding: 10px; } .no-print { display: none; } .photos img { max-width: 150px; } }
+        @media (max-width: 767.98px) {
+            body { padding: 8px; }
+            .container { padding: 12px; }
+            .header h2 { font-size: 1.2rem; }
+            .info-table td { padding: 6px 4px; font-size: 0.75rem; }
+            .info-table td:first-child { width: 120px; }
+            .btn, .back-link { font-size: 12px; padding: 6px 12px; margin-right: 5px; }
+            .photos img { max-width: 100px; max-height: 100px; }
+            .footer { font-size: 10px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="no-print" style="margin-bottom: 20px; text-align: right; display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
+        <a href="javascript:history.back()" class="btn back-link">← Назад</a>
+        <button onclick="window.print()" class="btn print-btn">🖨️ Печать</button>
+    </div>
+    <div class="header">
+        <h2>Акт операционного контроля</h2>
+        <p><strong>№ записи:</strong> {{ report.id }}</p>
+    </div>
+    <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+        <table class="info-table">
+            <tr><td>Счет</td><td>{{ report.batch_number }}</td></tr>
+            <tr><td>Наименование изделия</td><td>{{ report.product_article }}</td></tr>
+            <tr><td>Количество изделий</td><td>{{ report.quantity }} шт.</td></tr>
+            <tr><td>Дата и время контроля</td><td>{{ report.inspection_date }}</td></tr>
+            <tr><td>Контролёр</td><td>{{ report.inspector_name }}</td></tr>
+            <tr><td>Результат контроля</td>
+                <td>
+                    {% if report.result == 'accepted_first' %}
+                        <span style="color: green; font-weight: bold;">Принято с первого раза</span>
+                    {% elif report.result == 'accepted_after_fix' %}
+                        <span style="color: #e36209; font-weight: bold;">Принято после устранения замечаний</span>
+                    {% elif report.result == 'final_reject' %}
+                        <span style="color: red; font-weight: bold;">Окончательный брак</span>
+                    {% else %}
+                        {{ report.result }}
+                    {% endif %}
+                </td>
+            </tr>
+            <tr><td>Дефект</td><td>{% if defects %}<ul>{% for d in defects %}<li>{{ d }}</li>{% endfor %}</ul>{% else %}—{% endif %}</td></tr>
+            <tr><td>Примечание</td><td>{{ report.notes if report.notes else '—' }}</td></tr>
+            <tr><td>Кто создал</td><td>{{ creator if creator else report.inspector_name }}</td></tr>
+            <tr><td>Дата создания записи</td><td>{{ report.created_at.strftime('%Y-%m-%d %H:%M') if report.created_at else '—' }}</td></tr>
+        </table>
+    </div>
+    <h3>Фотофиксация</h3>
+    <div class="photos">
+        {% if photos %}
+            {% for photo in photos %}
+                <img src="{{ url_for('static', filename='uploads/' + photo) }}" alt="Фото">
+            {% endfor %}
+        {% else %}
+            <p class="no-photo">Фото не приложены</p>
+        {% endif %}
+    </div>
+    <div class="footer">Электронный документ • Система контроля качества ЖБИ</div>
+</div>
+</body>
+</html>

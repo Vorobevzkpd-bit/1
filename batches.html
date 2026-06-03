@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Склад ГП – Партии (FIFO){% endblock %}
+{% block content %}
+<h2>📋 Партии готовой продукции (FIFO)</h2>
+<p class="text-muted">Остатки по партиям. Списание происходит с наиболее старых партий.</p>
+
+<div class="table-responsive">
+    <table class="table table-sm table-striped">
+        <thead class="thead-dark">
+            <tr>
+                <th>ID</th>
+                <th>Продукт</th>
+                <th>Номер партии / акта</th>
+                <th>Получено</th>
+                <th>Остаток</th>
+                <th>Дата прихода</th>
+                <th>Дата создания</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for batch in batches %}
+            <tr>
+                <td>{{ batch[0] }}</td>
+                <td>{{ batch[1] }}</td>
+                <td>{{ batch[2] or '—' }}</td>
+                <td>{{ batch[3]|default(0)|round(3) }}</td>
+                <td><strong>{{ batch[4]|default(0)|round(3) }}</strong></td>
+                <td>{{ batch[5] }}</td>
+                <td>{{ batch[6].strftime('%Y-%m-%d %H:%M') if batch[6] else '—' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7">Нет активных партий</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<a href="{{ url_for('finished_goods.stock_overview') }}" class="btn btn-secondary">← Назад к остаткам</a>
+{% endblock %}

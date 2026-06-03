@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Главная — Система качества ЖБИ{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
+<style>
+    @media (max-width: 575.98px) {
+        h1 { font-size: 1.3rem !important; margin-bottom: 0.8rem !important; }
+        .card .display-4 { font-size: 1.6rem !important; }
+        .card-title { font-size: 0.8rem !important; }
+        .card-body { padding: 8px !important; }
+        .card-body small { font-size: 0.6rem !important; line-height: 1.2; }
+        #defectStatsTable table { font-size: 0.7rem; }
+        #defectStatsTable th, #defectStatsTable td { padding: 4px 6px; }
+        #rejectTable table { font-size: 0.7rem; }
+        #rejectTable th, #rejectTable td { padding: 4px 6px; }
+    }
+    @media (min-width: 576px) and (max-width: 767.98px) {
+        h1 { font-size: 1.5rem; }
+        .card .display-4 { font-size: 2rem; }
+    }
+    .quick-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    .quick-link {
+        background: #f8f9fa;
+        padding: 0.4rem 0.8rem;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        font-size: 0.8rem;
+        transition: all 0.2s;
+    }
+    .quick-link:hover {
+        background: #e9ecef;
+        transform: translateY(-1px);
+    }
+    .chart-container {
+        position: relative;
+        height: 250px;
+        margin-bottom: 1rem;
+    }
+    @media (max-width: 768px) {
+        .chart-container {
+            height: 200px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mt-2 mb-3">Добро пожаловать, {{ full_name }}!</h1>
+        </div>
+    </div>
+
+    <!-- Быстрые ссылки -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-light py-2">
+                    <h5 class="mb-0" style="font-size: 0.9rem;">🚀 Быстрые действия</h5>
+                </div>
+                <div class="card-body py-2">
+                    <div class="quick-links">
+                        <a href="{{ url_for('control.defect_control') }}" class="quick-link"><i class="fas fa-clipboard-list"></i> Акт контроля</a>
+                        <a href="{{ url_for('quality.quality_passport') }}" class="quick-link"><i class="fas fa-file-alt"></i> Паспорт качества</a>
+                        <a href="{{ url_for('finished_goods.ship') }}" class="quick-link"><i class="fas fa-truck"></i> Отгрузка</a>
+                        <a href="{{ url_for('finished_goods.add_receipt') }}" class="quick-link"><i class="fas fa-plus-circle"></i> Приход на склад</a>
+                        <a href="{{ url_for('production.schedule') }}" class="quick-link"><i class="fas fa-calendar-alt"></i> График формовки</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Карточки статистики -->
+    <div class="row mb-4">
+        <div class="col-6 col-md-3 mb-3">
+            <div class="card text-white bg-success h-100 stats-card">
+                <div class="card-body">
+                    <h5 class="card-title">Принято изделий</h5>
+                    <p class="card-text display-4" id="stat_accepted">—</p>
+                    <small>За текущий месяц</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 mb-3">
+            <div class="card text-white h-100 stats-card" id="fttCard">
+                <div class="card-body">
+                    <h5 class="card-title">FTT, % (Приемочный контроль)</h5>
+                    <p class="card-text display-4" id="stat_ftt">—</p>
+                    <small>За текущий месяц</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 mb-3">
+            <div class="card text-white bg-danger h-100 stats-card">
+                <div class="card-body">
+                    <h5 class="card-title">Окончательный брак</h5>
+                    <p class="card-text display-4" id="stat_defect_percent">—</p>
+                    <small>За текущий месяц</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 mb-3">
+            <div class="card text-white bg-info h-100 stats-card" id="operFttCard">
+                <div class="card-body">
+                    <h5 class="card-title">FTT, % (Операционный контроль)</h5>
+                    <p class="card-text display-4" id="stat_oper_ftt">—</p>
+                    <small>За текущий месяц</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Графики -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white py-2">
+                    <h5 class="mb-0" style="font-size: 0.9rem;">📈 Динамика приёмки и брака</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="dailyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white py-2">
+                    <h5 class="mb-0" style="font-size: 0.9rem;">🥧 Распределение дефектов</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="defectsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Статистика дефектов (таблица) -->
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white py-2">
+                    <h5 class="mb-0" style="font-size: 1rem;">📊 Статистика дефектов</h5>
+                </div>
+                <div class="card-body p-2 p-md-3">
+                    <div id="defectStatsTable" class="table-responsive">
+                        <p class="text-muted">Загрузка...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Бракованные изделия -->
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-danger text-white py-2">
+                    <h5 class="mb-0" style="font-size: 1rem;">❌ Окончательный брак за текущий месяц</h5>
+                </div>
+                <div class="card-body p-2 p-md-3">
+                    <div id="rejectTable" class="table-responsive">
+                        <p class="text-muted">Загрузка...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

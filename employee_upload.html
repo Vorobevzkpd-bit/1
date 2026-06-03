@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Загрузка сотрудников из Excel{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <a href="{{ url_for('warehouse_ppe.employees_list') }}" class="btn btn-outline-secondary mb-3">← К списку сотрудников</a>
+
+    <h2>📥 Загрузка сотрудников из Excel-файла</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+            </div>
+        {% endfor %}
+    {% endwith %}
+
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="file">Выберите файл Excel (.xlsx, .xls)</label>
+                    <input type="file" name="file" id="file" class="form-control-file" accept=".xlsx,.xls,.xlsm" required>
+                </div>
+                <button type="submit" class="btn btn-primary">📤 Загрузить</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header bg-light">
+            <strong>ℹ️ Формат файла</strong>
+        </div>
+        <div class="card-body">
+            <p>Файл должен содержать колонки в следующем порядке (начиная со второй строки, первая строка — заголовок):</p>
+            <ol>
+                <li><strong>ФИО</strong> (обязательно)</li>
+                <li><strong>Должность</strong></li>
+                <li><strong>Подразделение</strong></li>
+                <li><strong>Номер карты СКУД</strong></li>
+                <li><strong>Табельный номер</strong></li>
+                <li><strong>Дата приёма</strong> (в формате ДД.ММ.ГГГГ или ГГГГ-ММ-ДД)</li>
+            </ol>
+            <p>Пустые строки пропускаются. Если номер карты уже существует, строка будет пропущена.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

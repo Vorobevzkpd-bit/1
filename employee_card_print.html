@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Личная карточка учёта выдачи СИЗ – {{ emp.full_name }}</title>
+    <style>
+        body {
+            font-family: 'Times New Roman', serif;
+            margin: 20px;
+            color: #000;
+        }
+        .card {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 5px;
+            font-size: 16pt;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 4px 6px;
+            font-size: 12px;
+            vertical-align: top;
+        }
+        th {
+            background: #f0f0f0;
+        }
+        .section {
+            margin: 20px 0 10px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .signature {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+        .signature div {
+            width: 45%;
+        }
+        @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>ЛИЧНАЯ КАРТОЧКА № ___</h2>
+    <h2>учёта выдачи средств индивидуальной защиты</h2>
+
+    <table>
+        <tr><td width="180">Фамилия, имя, отчество</td><td>{{ emp.full_name }}</td></tr>
+        <tr><td>Табельный номер</td><td>{{ emp.personnel_number or '—' }}</td></tr>
+        <tr><td>Должность (профессия)</td><td>{{ emp.position or '—' }}</td></tr>
+        <tr><td>Подразделение</td><td>{{ emp.department or '—' }}</td></tr>
+        <tr><td>Дата поступления на работу</td><td>{{ emp.hire_date or '—' }}</td></tr>
+    </table>
+
+    <div class="section">1. Нормы выдачи СИЗ</div>
+    {% if norms %}
+    <table>
+        <thead>
+            <tr><th>Наименование СИЗ</th><th>Тип</th><th>Норма выдачи</th><th>Срок носки, мес.</th></tr>
+        </thead>
+        <tbody>
+        {% for n in norms %}
+        <tr>
+            <td>{{ n.name }}</td>
+            <td>{{ n.type }}</td>
+            <td>{{ n.quantity }} {{ n.unit }}</td>
+            <td>{{ n.period_months or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Нормы для данной должности не заданы.</p>
+    {% endif %}
+
+    <div class="section">2. Выданные средства защиты (действующие)</div>
+    {% if issuances %}
+    <table>
+        <thead>
+            <tr><th>Наименование</th><th>Тип</th><th>Выдано</th><th>Дата выдачи</th><th>Дата замены</th><th>Срок, мес.</th></tr>
+        </thead>
+        <tbody>
+        {% for i in issuances %}
+        <tr>
+            <td>{{ i.item_name }}</td>
+            <td>{{ i.type }}</td>
+            <td>{{ i.quantity }} {{ i.unit }}</td>
+            <td>{{ i.date_issued }}</td>
+            <td>{{ i.date_expire or '—' }}</td>
+            <td>{{ i.wear_period or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Нет действующих выдач.</p>
+    {% endif %}
+
+    <div class="signature">
+        <div>Выдал: _______________</div>
+        <div>Получил: _______________</div>
+    </div>
+    <p style="text-align: right; font-size: 12px;">Дата печати: {{ printed_date }}</p>
+</div>
+</body>
+</html>

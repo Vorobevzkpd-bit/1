@@ -1,0 +1,133 @@
+/* app/static/css/dashboard.css */
+/* Стили для дашборда */
+
+/* Карточки статистики */
+.stats-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: none;
+    border-radius: 1rem;
+    overflow: hidden;
+}
+
+.stats-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+}
+
+.stats-card .card-body {
+    padding: 1.25rem;
+}
+
+.stats-card .display-4 {
+    font-size: 2.2rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.stats-card .card-title {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.9;
+}
+
+/* Графики */
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+/* Таблицы на дашборде */
+.dashboard-table {
+    font-size: 0.85rem;
+}
+
+.dashboard-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.dashboard-table td {
+    vertical-align: middle;
+}
+
+/* Быстрые ссылки */
+.quick-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.quick-link-btn {
+    flex: 1;
+    min-width: 120px;
+    text-align: center;
+    padding: 0.6rem 0.5rem;
+    border-radius: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.quick-link-btn i {
+    margin-right: 6px;
+    font-size: 0.9rem;
+}
+
+.quick-link-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Цвета для карточек (bootstrap совместимость) */
+.bg-primary-light {
+    background-color: #e7f1ff;
+    color: #0c63e4;
+}
+
+.bg-success-light {
+    background-color: #d1e7dd;
+    color: #146c43;
+}
+
+.bg-warning-light {
+    background-color: #fff3cd;
+    color: #997404;
+}
+
+.bg-info-light {
+    background-color: #cff4fc;
+    color: #055160;
+}
+
+/* Адаптивность */
+@media (max-width: 767.98px) {
+    .stats-card .display-4 {
+        font-size: 1.6rem;
+    }
+    .stats-card .card-title {
+        font-size: 0.7rem;
+    }
+    .stats-card .card-body {
+        padding: 0.75rem;
+    }
+    .chart-container {
+        height: 220px;
+    }
+    .quick-link-btn {
+        font-size: 0.7rem;
+        padding: 0.4rem 0.3rem;
+        min-width: 90px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .stats-card .display-4 {
+        font-size: 1.3rem;
+    }
+    .quick-link-btn {
+        font-size: 0.65rem;
+        min-width: 75px;
+    }
+}

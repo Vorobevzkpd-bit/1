@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Нормы выдачи – Склад СИЗ{% endblock %}
+
+{% block head_extra %}
+<style>
+    @media (max-width: 767.98px) {
+        .form-inline input, .form-inline select, .form-inline button {
+            width: 100%;
+            margin-bottom: 8px;
+        }
+        .table-responsive td, .table-responsive th {
+            font-size: 0.8rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h2>📋 Нормы выдачи СИЗ и инструментов</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+            </div>
+        {% endfor %}
+    {% endwith %}
+
+    <!-- Форма добавления новой нормы -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <strong>➕ Добавить норму</strong>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('warehouse_ppe.norm_add') }}" class="form-inline">
+                <select name="position" class="form-control m-1" required>
+                    <option value="">— выберите должность —</option>
+                    {% for pos in positions %}
+                    <option value="{{ pos }}">{{ pos }}</option>
+                    {% endfor %}
+                </select>
+                <select name="item_id" class="form-control m-1" required>
+                    <option value="">— выберите предмет —</option>
+                    {% for item in items %}
+                    <option value="{{ item.id }}">{{ item.name }}</option>
+                    {% endfor %}
+                </select>
+                <input type="number" name="quantity" value="1" min="0.1" step="0.1" class="form-control m-1" placeholder="Кол-во">
+                <input type="number" name="period_months" class="form-control m-1" placeholder="Срок, мес." min="0">
+                <button type="submit" class="btn btn-success m-1">Добавить</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Таблица норм -->
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="thead-light">
+                <tr>
+                    <th>Должность</th>
+                    <th>Предмет</th>
+                    <th>Тип</th>
+                    <th>Количество</th>
+                    <th>Срок, мес.</th>
+                    <th>Ед.</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for norm in norms %}
+                <tr>
+                    <td>{{ norm.position }}</td>
+                    <td>{{ norm.item.name }}</td>
+                    <td><span class="badge badge-{{ 'primary' if norm.item.type == 'СИЗ' else 'info' }}">{{ norm.item.type }}</span></td>
+                    <td>{{ norm.quantity }}</td>
+                    <td>{{ norm.period_months or '—' }}</td>
+                    <td>{{ norm.item.unit }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('warehouse_ppe.norm_delete', norm_id=norm.id) }}" style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Удалить норму?')">🗑️</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-center text-muted">Нормы не заданы</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

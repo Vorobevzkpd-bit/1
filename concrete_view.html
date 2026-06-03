@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Протокол испытаний бетона №{{ test.protocol_number }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    .protocol-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    h1, h2 { text-align: center; }
+    h1 { font-size: 1.5rem; }
+    h2 { font-size: 1.2rem; margin: 20px 0 10px; }
+    .table-wrapper { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #999; padding: 8px; text-align: center; }
+    th { background: #e1ecf4; }
+    .signature-block { display: flex; justify-content: space-between; margin-top: 30px; flex-wrap: wrap; gap: 20px; }
+    .conclusion-accepted { color: green; font-weight: bold; }
+    .conclusion-rejected { color: red; font-weight: bold; }
+    @media print { .no-print { display: none; } }
+    @media (max-width: 767.98px) {
+        .protocol-container { padding: 12px; }
+        h1 { font-size: 1.2rem; }
+        th, td { font-size: 0.75rem; padding: 4px; }
+        .signature-block { flex-direction: column; }
+        .no-print .btn, .no-print a { width: 100%; margin: 5px 0; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="protocol-container">
+    <div class="no-print mb-3" style="display: flex; flex-wrap: wrap; gap: 8px;">
+        <a href="{{ url_for('protocols.concrete_list') }}" class="btn btn-secondary">← К списку</a>
+        <button class="btn btn-primary" onclick="window.print()">🖨️ Печать</button>
+        <a href="{{ url_for('protocols.concrete_edit', doc_id=test.id) }}" class="btn btn-warning">✏️ Редактировать</a>
+        <form method="POST" action="{{ url_for('protocols.concrete_delete', doc_id=test.id) }}" style="display:inline;" onsubmit="return confirm('Удалить протокол?')">
+            <button type="submit" class="btn btn-danger">🗑️ Удалить</button>
+        </form>
+    </div>
+
+    <div style="text-align:center; margin-bottom:15px;">
+        <img src="/static/PSK.png" alt="Логотип" style="max-width: 200px;" onerror="this.style.display='none'">
+    </div>
+    <h1>ПРОТОКОЛ № {{ test.protocol_number }}</h1>
+    <h2>ИСПЫТАНИЙ БЕТОНА НА СЖАТИЕ</h2>
+    <p style="text-align:right;">Дата испытания: {{ test.test_date.strftime('%d.%m.%Y') if test.test_date else '—' }}</p>
+
+    <h3>1. СВЕДЕНИЯ ОБ ОБРАЗЦАХ</h3>
+    <p><strong>Класс бетона:</strong> {{ test.concrete_class }}<br>
+    <strong>Тип образца:</strong> {{ test.sample_type or '—' }}<br>
+    <strong>Номер партии:</strong> {{ test.batch_number or '—' }}<br>
+    <strong>Изготовитель:</strong> {{ test.manufacturer or '—' }}</p>
+
+    <h3>2. РЕЗУЛЬТАТЫ ИСПЫТАНИЙ</h3>
+    <div class="table-wrapper">
+        <table class="table table-bordered">
+            <thead>
+                <tr><th>№ образца</th><th>Разрушающая нагрузка, кН</th><th>Прочность, МПа</th></tr>
+            </thead>
+            <tbody>
+                {% for strength in test.get_strength_values_list() %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ ((strength * (test.sample_type == 'cube' and 22500 or 17671.5) / 1000) | round(1)) if strength else '—' }}</td>
+                    <td>{{ strength|round(1) if strength else '—' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3">Нет данных</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h3>3. ОБРАБОТКА РЕЗУЛЬТАТОВ</h3>
+    <p><strong>Средняя прочность:</strong> {{ test.actual_strength|round(1) if test.actual_strength else '—' }} МПа<br>
+    <strong>Требуемая прочность:</strong> {{ test.required_strength|round(1) if test.required_strength else '—' }} МПа</p>
+
+    <h3>4. ЗАКЛЮЧЕНИЕ</h3>
+    <p>Испытанные образцы 
+        <span class="{% if test.conclusion == 'accepted' %}conclusion-accepted{% else %}conclusion-rejected{% endif %}">
+            {{ 'СООТВЕТСТВУЮТ' if test.conclusion == 'accepted' else 'НЕ СООТВЕТСТВУЮТ' }}
+        </span> 
+        требованиям {{ test.gost_standard }}
+    </p>
+
+    {% if test.density or test.water_cement_ratio %}
+    <h3>5. ДОПОЛНИТЕЛЬНЫЕ ДАННЫЕ</h3>
+    <p>{% if test.density %}Плотность: {{ test.density }} кг/м³<br>{% endif %}
+    {% if test.water_cement_ratio %}В/Ц отношение: {{ test.water_cement_ratio }}{% endif %}</p>
+    {% endif %}
+
+    {% if test.notes %}
+    <h3>6. ПРИМЕЧАНИЯ</h3>
+    <p>{{ test.notes }}</p>
+    {% endif %}
+
+    <h3>7. ПОДПИСИ</h3>
+    <div class="signature-block">
+        <div>Испытание провёл: _________________</div>
+        <div>Начальник лаборатории: _________________</div>
+    </div>
+    <p style="font-size:8pt;">* Форма соответствует ГОСТ 10180-2012</p>
+    <p style="font-size:8pt;">Дата создания: {{ test.created_at.strftime('%d.%m.%Y %H:%M') if test.created_at else '—' }}</p>
+</div>
+{% endblock %}

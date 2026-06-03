@@ -1,0 +1,638 @@
+{% extends "base.html" %}
+
+{% block title %}Паспорт качества ЖБИ{% endblock %}
+
+{% block head_extra %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+    .passport-card { max-width: 1200px; margin: 0 auto; background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
+    .passport-card .section-title { font-weight: bold; font-size: 1.1rem; margin: 15px 0 10px 0; border-bottom: 2px solid #6c757d; padding-bottom: 5px; }
+    .passport-card .field { margin-bottom: 12px; }
+    .passport-card .field label { font-weight: 600; font-size: 0.85rem; margin-bottom: 4px; }
+    .passport-card .field.required label::after { content: " *"; color: red; }
+    .passport-card .field-error input, .passport-card .field-error select { border: 2px solid red !important; background-color: #fff0f0; }
+    .passport-card input, .passport-card select, .passport-card textarea { border: 1px solid #ced4da; border-radius: 4px; padding: 6px 10px; width: 100%; font-size: 0.9rem; }
+    .passport-card #productName, .passport-card #docDate, .passport-card #accountSelect,
+    .passport-card .item-quantity, .passport-card .item-date, .passport-card .item-number { background-color: #e6ffe6 !important; }
+    .items-container { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+    .item-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; border: 1px solid #dee2e6; padding: 8px; border-radius: 6px; background: #f9f9f9; }
+    .item-row .field { flex: 1 1 150px; margin-bottom: 0; }
+    .remove-item { background: #fff; border: 1px solid #dc3545; border-radius: 4px; width: 32px; height: 32px; cursor: pointer; font-weight: bold; color: #dc3545; }
+    .remove-item:hover { background: #dc3545; color: white; }
+    .add-item-btn { background: #6c757d; color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin-top: 5px; }
+    .add-item-btn:hover { background: #5a6268; }
+    .btn-group { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+    .logo-selection { background: #f1f3f5; padding: 10px; border-radius: 6px; margin-bottom: 20px; display: flex; gap: 20px; align-items: center; }
+    .logo-selection label { display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer; }
+    .checkbox-field { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+    .checkbox-field input[type="checkbox"] { width: auto; margin: 0; }
+    .flash-message { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; padding: 8px; border-radius: 4px; margin-bottom: 12px; }
+    #ajaxMessage { background: #d4edda; padding: 8px; border-radius: 4px; margin-bottom: 12px; display: none; }
+
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 2000; }
+    .modal-content { background: white; width: 800px; max-width: 96%; max-height: 90vh; overflow-y: auto; padding: 18px; border: 2px solid black; position: relative; font-family: 'Times New Roman', serif; font-size: 14pt; }
+    .close-btn { position: absolute; top: 7px; right: 10px; font-size: 24px; cursor: pointer; color: black; line-height: 1; }
+    .passport-header-template { margin-bottom: 14px; }
+    .doc-title { font-size: 1.4rem; font-weight: bold; color: black; margin: 10px 0 7px 0; border-bottom: 2px solid black; padding-bottom: 4px; }
+    .doc-title span { font-weight: normal; font-size: 0.9rem; margin-left: 7px; }
+    .passport-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    .passport-table tr { border-bottom: 1px solid black; }
+    .passport-table td { padding: 6px; vertical-align: top; font-size: inherit; }
+    .passport-table td:first-child { font-weight: bold; width: 40%; }
+    .guarantee-block { border: 1px solid black; padding: 10px; margin: 14px 0 10px; background: white; font-family: 'Times New Roman', serif; text-align: center; line-height: 1.2; font-size: inherit; }
+    .signature { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 18px; flex-wrap: wrap; gap: 14px; }
+    .signature-item { min-width: 140px; }
+    .signature-item .underline { border-bottom: 1px solid black; margin-top: 4px; min-height: 18px; font-family: 'Times New Roman', serif; }
+    .print-hint { text-align: right; margin-top: 14px; }
+    @media print { body * { visibility: hidden; } .modal-content, .modal-content * { visibility: visible; } .modal-content { position: absolute; left: 0; top: 0; width: 100%; border: none; } .close-btn, .print-hint .btn { display: none; } }
+
+    @media (max-width: 767.98px) {
+        .passport-card { padding: 12px; }
+        .passport-card .section-title { font-size: 1rem; }
+        .passport-card .field label { font-size: 0.75rem; }
+        .item-row { flex-direction: column; align-items: stretch; }
+        .item-row .field { width: 100%; margin-bottom: 8px; }
+        .remove-item { align-self: flex-end; width: 36px; height: 36px; }
+        .btn-group { flex-direction: column; gap: 10px; }
+        .btn-group .btn { width: 100%; margin: 0; }
+        .logo-selection { flex-direction: column; align-items: flex-start; gap: 8px; }
+        .modal-content { padding: 12px; font-size: 12pt; }
+        .doc-title { font-size: 1.2rem; }
+        .doc-title span { font-size: 0.8rem; }
+        .passport-table td { padding: 4px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="passport-card">
+    <div id="ajaxMessage" class="flash-message" style="display:none;"></div>
+
+    <div class="section-title">🏢 Выбор организации</div>
+    <div class="logo-selection">
+        <label><input type="radio" name="logoOption" value="psk" checked> ПСК</label>
+        <label><input type="radio" name="logoOption" value="k33"> К-33</label>
+    </div>
+
+    <form id="passportForm" method="POST" action="{{ url_for('quality.quality_passport') }}">
+        <input type="hidden" name="doc_number" id="hidden_doc_number">
+        <input type="hidden" name="doc_date" id="hidden_doc_date">
+        <input type="hidden" name="product_name" id="hidden_product_name">
+        <input type="hidden" name="drawing_series" id="hidden_drawing_series">
+        <input type="hidden" name="concrete_class" id="hidden_concrete_class">
+        <input type="hidden" name="release_strength" id="hidden_release_strength">
+        <input type="hidden" name="actual_strength" id="hidden_actual_strength">
+        <input type="hidden" name="surface_category" id="hidden_surface_category">
+        <input type="hidden" name="weight" id="hidden_weight">
+        <input type="hidden" name="frost" id="hidden_frost">
+        <input type="hidden" name="waterproof" id="hidden_waterproof">
+        <input type="hidden" name="additional_info" id="hidden_additional_info">
+        <input type="hidden" name="logo_type" id="logo_type" value="psk">
+        <input type="hidden" name="items_list" id="hidden_items_list">
+        <input type="hidden" name="required_strength" id="hidden_required_strength">
+        <input type="hidden" name="responsible" id="hidden_responsible">
+        <input type="hidden" name="account" id="hidden_account">
+        <input type="hidden" name="quantity" id="hiddenTotalQuantity" value="0">
+        <input type="hidden" name="invoice_item_id" id="invoice_item_id" value="">
+
+        <div class="section-title">📄 Документ о качестве и изделие</div>
+        <div class="row">
+            <div class="col-md-4 field required">
+                <label>Дата выдачи</label>
+                <input type="date" id="docDate" class="form-control">
+            </div>
+            <div class="col-md-4 field required">
+                <label>СЧЕТ</label>
+                <select id="accountSelect" class="form-select"><option value="">— выберите счет —</option></select>
+            </div>
+            <div class="col-md-4 field required">
+                <label>Наименование изделия</label>
+                <select id="productName" class="form-select"><option value="">— сначала выберите счет —</option></select>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 field">
+                <label>Обозначение стандарта</label>
+                <input type="text" id="standard" class="form-control" value="ГОСТ13015-2012">
+            </div>
+            <div class="col-md-6 field required">
+                <label>Номер серии рабочих чертежей</label>
+                <select id="drawingSeries" class="form-select"><option value="">— выберите изделие —</option></select>
+            </div>
+        </div>
+        <input type="hidden" id="docNumber" value="">
+
+        <div class="section-title">📦 Перечень изделий (количество, дата, номер)</div>
+        <div id="itemsContainer" class="items-container"></div>
+        <button type="button" class="add-item-btn" onclick="addItemRow()">➕ Добавить изделие</button>
+
+        <div class="section-title">🧪 Бетон и качество поверхности</div>
+        <div class="row">
+            <div class="col-md-3 field">
+                <label>Класс бетона</label>
+                <select id="concreteClass" class="form-select">
+                    <option value="B12.5">B12.5</option><option value="B15">B15</option><option value="B20">B20</option>
+                    <option value="B22.5">B22.5</option><option value="B25">B25</option><option value="B30" selected>B30</option>
+                    <option value="B35">B35</option><option value="B40">B40</option><option value="B45">B45</option>
+                    <option value="B50">B50</option><option value="B55">B55</option><option value="B60">B60</option>
+                </select>
+            </div>
+            <div class="col-md-3 field">
+                <label>Требуемая прочность (МПа)</label>
+                <input type="text" id="requiredStrength" class="form-control" readonly style="background:#e9ecef;">
+            </div>
+            <div class="col-md-2 field">
+                <label>Отпускная прочность, %</label>
+                <select id="releasePercent" class="form-select">
+                    <option value="70">70</option><option value="80">80</option><option value="90" selected>90</option><option value="100">100</option>
+                </select>
+            </div>
+            <div class="col-md-2 field">
+                <label>Отпускная прочность (МПа)</label>
+                <input type="text" id="releaseStrength" class="form-control" readonly style="background:#e9ecef;">
+            </div>
+            <div class="col-md-2 field">
+                <label>Фактическая прочность (МПа)</label>
+                <input type="text" id="actualStrength" class="form-control" readonly style="background:#e9ecef;">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4 field">
+                <label>Категория поверхности (первая)</label>
+                <select id="surfaceCat1" class="form-select">
+                    <option value="А1">А1</option><option value="А2">А2</option><option value="А3">А3</option>
+                    <option value="А4">А4</option><option value="А5">А5</option><option value="А6" selected>А6</option><option value="А7">А7</option>
+                </select>
+            </div>
+            <div class="col-md-4 field">
+                <label>Категория поверхности (вторая)</label>
+                <select id="surfaceCat2" class="form-select">
+                    <option value="">—</option>
+                    <option value="А1">А1</option><option value="А2">А2</option><option value="А3">А3</option>
+                    <option value="А4">А4</option><option value="А5">А5</option><option value="А6">А6</option><option value="А7">А7</option>
+                </select>
+            </div>
+            <input type="hidden" id="surfaceCatCombined" value="А6">
+            <div class="col-md-2 field"><label>Масса единицы, т</label><input type="text" id="weight" class="form-control"></div>
+            <div class="col-md-2 field"><label>Морозостойкость (F)</label><input type="text" id="frost" class="form-control"></div>
+            <div class="col-md-2 field"><label>Водонепроницаемость (W)</label><input type="text" id="waterproof" class="form-control"></div>
+        </div>
+
+        <div class="section-title">📝 Дополнительные сведения</div>
+        <div class="field">
+            <textarea id="additionalInfo" rows="2" class="form-control" placeholder="Введите дополнительные сведения..."></textarea>
+            <div class="checkbox-field"><input type="checkbox" id="includeAdditional"> <label for="includeAdditional" style="margin:0;">Добавить в паспорт</label></div>
+        </div>
+        <input type="hidden" id="otkChief" value="Голубева В.Ю.">
+        <input type="hidden" id="responsibleFile" value="">
+    </form>
+
+    <div class="btn-group">
+        <button class="btn btn-primary" onclick="generatePassport()">📄 Сформировать паспорт</button>
+    </div>
+</div>
+
+<div id="passportModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+        <div id="passportBody"></div>
+        <div class="print-hint text-right mt-3"><button class="btn btn-secondary" onclick="window.print()">🖨️ Печать</button></div>
+    </div>
+</div>
+
+<script>
+    let currentInvoices = [];
+    let currentItems = [];
+    
+    const strengthMap = {
+        "B12.5":"16,0", "B15":"19,2", "B20":"25,6", "B22.5":"28,8", "B25":"32,0",
+        "B30":"38,4", "B35":"44,8", "B40":"51,2", "B45":"57,6", "B50":"64,0",
+        "B55":"70,4", "B60":"76,8"
+    };
+
+    // Загрузка списка счетов из БД
+    function loadInvoices() {
+        fetch('/invoice/api/invoices')
+            .then(res => res.json())
+            .then(data => {
+                currentInvoices = data;
+                const select = document.getElementById('accountSelect');
+                select.innerHTML = '<option value="">— выберите счет —</option>';
+                data.forEach(inv => {
+                    const opt = document.createElement('option');
+                    opt.value = inv.id;
+                    opt.textContent = `${inv.number} (${inv.customer || '—'})`;
+                    select.appendChild(opt);
+                });
+                const saved = localStorage.getItem('selectedInvoiceId');
+                if (saved && data.some(i => i.id == saved)) select.value = saved;
+                if (select.value) loadInvoiceItems(select.value);
+            })
+            .catch(err => console.error('Ошибка загрузки счетов:', err));
+    }
+
+    // Загрузка позиций по выбранному счёту
+    function loadInvoiceItems(invoiceId) {
+        if (!invoiceId) {
+            document.getElementById('productName').innerHTML = '<option value="">— сначала выберите счет —</option>';
+            document.getElementById('drawingSeries').innerHTML = '<option value="">— выберите изделие —</option>';
+            return;
+        }
+        fetch(`/invoice/api/invoices/${invoiceId}/items`)
+            .then(res => res.json())
+            .then(data => {
+                currentItems = data;
+                const select = document.getElementById('productName');
+                select.innerHTML = '<option value="">— выберите изделие —</option>';
+                data.forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.id;
+                    opt.textContent = `${item.product_name} (строка ${item.line_number})`;
+                    opt.dataset.data = JSON.stringify(item);
+                    select.appendChild(opt);
+                });
+                const saved = localStorage.getItem('selectedItemId');
+                if (saved && data.some(i => i.id == saved)) select.value = saved;
+                if (select.value && select.selectedIndex >= 0) {
+                    fillFormFromItem(select.options[select.selectedIndex]);
+                } else if (data.length > 0) {
+                    select.selectedIndex = 1;
+                    fillFormFromItem(select.options[select.selectedIndex]);
+                }
+            })
+            .catch(err => console.error('Ошибка загрузки позиций:', err));
+    }
+
+    // Заполнение формы выбранной позицией
+    function fillFormFromItem(option) {
+        if (!option || !option.value) return;
+        const item = JSON.parse(option.dataset.data);
+        
+        document.getElementById('hidden_product_name').value = item.product_name;
+        document.getElementById('invoice_item_id').value = item.id;
+        
+        // Заполняем серии чертежей (только один вариант)
+        const seriesSelect = document.getElementById('drawingSeries');
+        seriesSelect.innerHTML = '<option value="">— выберите серию —</option>';
+        const opt = document.createElement('option');
+        opt.value = item.drawing || '';
+        opt.textContent = item.drawing || '—';
+        opt.dataset.concreteClass = item.concrete_class || '';
+        opt.dataset.frost = item.frost_resistance || '';
+        opt.dataset.waterproof = item.water_resistance || '';
+        opt.dataset.volumeM3 = item.volume_m3 || '';
+        opt.dataset.releasePercent = item.release_strength_percent || 90;
+        opt.dataset.surfaceCategory = item.surface_category || 'А6';
+        opt.dataset.additional = item.additional_info || '';
+        opt.dataset.bridgeInspector = item.bridge_inspector || '';
+        seriesSelect.appendChild(opt);
+        seriesSelect.selectedIndex = 1;
+        
+        // Заполняем поля
+        document.getElementById('concreteClass').value = item.concrete_class || '';
+        document.getElementById('frost').value = item.frost_resistance || '';
+        document.getElementById('waterproof').value = item.water_resistance || '';
+        document.getElementById('weight').value = item.volume_m3 || '';
+        document.getElementById('releasePercent').value = item.release_strength_percent || 90;
+        document.getElementById('surfaceCat1').value = item.surface_category || 'А6';
+        let add = item.additional_info || '';
+        if (add) {
+            document.getElementById('additionalInfo').value = add;
+            document.getElementById('includeAdditional').checked = true;
+        } else {
+            document.getElementById('additionalInfo').value = '';
+            document.getElementById('includeAdditional').checked = false;
+        }
+        document.getElementById('responsibleFile').value = item.bridge_inspector || '';
+        
+        // Обновить прочность
+        updateRequiredStrength();
+        updateReleaseStrength();
+        updateActualStrength();
+        updateSurfaceCategory();
+        
+        // Автоматически добавить строку с количеством
+        if (item.quantity_ordered && document.querySelectorAll('.item-row').length === 0) {
+            addItemRow(item.quantity_ordered, '', '');
+        }
+        
+        // Сохранить в localStorage
+        localStorage.setItem('selectedInvoiceId', document.getElementById('accountSelect').value);
+        localStorage.setItem('selectedItemId', option.value);
+    }
+
+    function updateRequiredStrength() {
+        let val = strengthMap[document.getElementById('concreteClass').value];
+        document.getElementById('requiredStrength').value = val || '';
+    }
+    
+    function getRequiredStrengthAsNumber() {
+        return parseFloat((document.getElementById('requiredStrength').value || '0').replace(',', '.'));
+    }
+    
+    function getReleasePercentAsNumber() {
+        return parseFloat(document.getElementById('releasePercent').value) || 0;
+    }
+    
+    function updateReleaseStrength() {
+        let req = getRequiredStrengthAsNumber();
+        let pct = getReleasePercentAsNumber();
+        let rel = (req * pct / 100).toFixed(1);
+        document.getElementById('releaseStrength').value = `${pct}% Rt=${rel.replace('.', ',')}МПа`;
+    }
+    
+    function updateActualStrength() {
+        let req = getRequiredStrengthAsNumber();
+        let pct = getReleasePercentAsNumber();
+        let lo = (pct / 100) * req;
+        let hi = req * 1.1;
+        let val = lo + Math.random() * (hi - lo);
+        document.getElementById('actualStrength').value = val.toFixed(1).replace('.', ',');
+    }
+    
+    function updateSurfaceCategory() {
+        let c1 = document.getElementById('surfaceCat1').value;
+        let c2 = document.getElementById('surfaceCat2').value;
+        document.getElementById('surfaceCatCombined').value = c2 ? `${c1}/${c2}` : c1;
+    }
+    
+    function generateDocumentNumber(d) {
+        if (!d) return '';
+        let [y, m, dd] = d.split('-');
+        let now = new Date();
+        return `${dd}${m}${y}/${now.getHours() + now.getMinutes() + now.getSeconds()}`;
+    }
+    
+    function updateDocNumberField() {
+        document.getElementById('docNumber').value = generateDocumentNumber(document.getElementById('docDate').value);
+    }
+
+    function createItemRow(q = '', d = '', n = '') {
+        let dv = d;
+        if (!dv) {
+            let t = new Date();
+            dv = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+        } else if (d.includes('.')) {
+            let p = d.split('.');
+            if (p.length === 3) dv = `${p[2]}-${p[1]}-${p[0]}`;
+        }
+        let div = document.createElement('div');
+        div.className = 'item-row';
+        div.innerHTML = `<div class="field"><label>Количество</label><input type="text" class="form-control item-quantity" value="${q}" placeholder="например 2шт"></div>
+                         <div class="field"><label>Дата изготовления</label><input type="date" class="form-control item-date" value="${dv}"></div>
+                         <div class="field"><label>Номер изделия</label><input type="text" class="form-control item-number" value="${n}" placeholder="№ изделия"></div>
+                         <button type="button" class="remove-item" onclick="this.parentElement.remove(); updateTotalQuantity();">✖</button>`;
+        updateTotalQuantity();
+        return div;
+    }
+    
+    function addItemRow(q = '', d = '', n = '') {
+        document.getElementById('itemsContainer').appendChild(createItemRow(q, d, n));
+    }
+    
+    function initDefaultItems() {
+        document.getElementById('itemsContainer').innerHTML = '';
+        addItemRow('', '', '');
+    }
+    
+    function collectItemsString() {
+        let rows = document.querySelectorAll('#itemsContainer .item-row');
+        let items = [];
+        rows.forEach(r => {
+            let q = r.querySelector('.item-quantity').value.trim();
+            let d = r.querySelector('.item-date').value;
+            let n = r.querySelector('.item-number').value.trim();
+            let ds = d ? d.split('-').reverse().join('.') : '';
+            let part = q || '?';
+            if (q && !q.toLowerCase().includes('шт')) part += ' шт.';
+            if (ds) part += ' ' + ds;
+            if (n) part += ' №' + n;
+            items.push(part);
+        });
+        return items.join('<br>');
+    }
+
+    function updateTotalQuantity() {
+        let total = 0;
+        document.querySelectorAll('.item-quantity').forEach(input => {
+            let val = parseInt(input.value) || 0;
+            total += val;
+        });
+        document.getElementById('hiddenTotalQuantity').value = total;
+    }
+
+    function validateForm() {
+        let docDate = document.getElementById('docDate').value;
+        let account = document.getElementById('accountSelect').value;
+        let product = document.getElementById('productName').value;
+        let series = document.getElementById('drawingSeries').value;
+        if (!docDate || !account || !product || !series) {
+            alert("Заполните обязательные поля: дата, счёт, изделие, серия чертежей");
+            return false;
+        }
+        return true;
+    }
+    
+    function updateFieldsForSelectedSeries() {
+        const seriesSelect = document.getElementById('drawingSeries');
+        const selectedOption = seriesSelect.options[seriesSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) return;
+        
+        document.getElementById('concreteClass').value = selectedOption.dataset.concreteClass || '';
+        document.getElementById('frost').value = selectedOption.dataset.frost || '';
+        document.getElementById('waterproof').value = selectedOption.dataset.waterproof || '';
+        document.getElementById('weight').value = selectedOption.dataset.volumeM3 || '';
+        document.getElementById('releasePercent').value = selectedOption.dataset.releasePercent || '90';
+        document.getElementById('surfaceCat1').value = selectedOption.dataset.surfaceCategory || 'А6';
+        let add = selectedOption.dataset.additional || '';
+        if (add) {
+            document.getElementById('additionalInfo').value = add;
+            document.getElementById('includeAdditional').checked = true;
+        } else {
+            document.getElementById('additionalInfo').value = '';
+            document.getElementById('includeAdditional').checked = false;
+        }
+        document.getElementById('responsibleFile').value = selectedOption.dataset.bridgeInspector || '';
+        
+        updateRequiredStrength();
+        updateReleaseStrength();
+        updateActualStrength();
+        updateSurfaceCategory();
+        
+        let standard = 'ГОСТ13015-2012';
+        const productName = document.getElementById('productName').options[document.getElementById('productName').selectedIndex]?.text || '';
+        if (productName && productName.toLowerCase().includes('свая')) {
+            standard = 'ГОСТ19804-2021';
+        }
+        document.getElementById('standard').value = standard;
+    }
+
+    function saveToDatabase(silent = false) {
+        if (!validateForm()) return Promise.reject();
+        updateFieldsForSelectedSeries();
+        updateDocNumberField();
+        updateSurfaceCategory();
+        updateTotalQuantity();
+
+        document.getElementById('hidden_account').value = document.getElementById('accountSelect').options[document.getElementById('accountSelect').selectedIndex]?.text.split(' ')[0] || '';
+        document.getElementById('hidden_doc_number').value = document.getElementById('docNumber').value;
+        document.getElementById('hidden_doc_date').value = document.getElementById('docDate').value;
+        document.getElementById('hidden_product_name').value = document.getElementById('productName').options[document.getElementById('productName').selectedIndex]?.text.split(' (')[0] || '';
+        document.getElementById('hidden_drawing_series').value = document.getElementById('drawingSeries').value;
+        document.getElementById('hidden_concrete_class').value = document.getElementById('concreteClass').value;
+        document.getElementById('hidden_release_strength').value = document.getElementById('releaseStrength').value;
+        document.getElementById('hidden_actual_strength').value = document.getElementById('actualStrength').value;
+        document.getElementById('hidden_surface_category').value = document.getElementById('surfaceCatCombined').value;
+        document.getElementById('hidden_weight').value = document.getElementById('weight').value;
+        document.getElementById('hidden_frost').value = document.getElementById('frost').value;
+        document.getElementById('hidden_waterproof').value = document.getElementById('waterproof').value;
+        let add = document.getElementById('additionalInfo').value;
+        document.getElementById('hidden_additional_info').value = document.getElementById('includeAdditional').checked ? add : '';
+        document.getElementById('logo_type').value = document.querySelector('input[name="logoOption"]:checked').value;
+        document.getElementById('hidden_items_list').value = collectItemsString();
+        document.getElementById('hidden_required_strength').value = document.getElementById('requiredStrength').value;
+        document.getElementById('hidden_responsible').value = document.getElementById('responsibleFile').value;
+
+        let fd = new FormData(document.getElementById('passportForm'));
+        return fetch(window.location.href, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: fd
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                if (!silent) {
+                    let m = document.getElementById('ajaxMessage');
+                    m.style.display = 'block';
+                    m.innerHTML = '✅ ' + d.message;
+                    setTimeout(() => m.style.display = 'none', 3000);
+                }
+                return true;
+            } else {
+                throw new Error(d.message || 'Ошибка сохранения');
+            }
+        })
+        .catch(e => {
+            if (!silent) alert('Ошибка: ' + e.message);
+            return false;
+        });
+    }
+
+    function generatePassport() {
+        if (!validateForm()) return;
+        updateFieldsForSelectedSeries();
+        updateTotalQuantity();
+
+        saveToDatabase(true).then(() => {
+            updateDocNumberField();
+            updateSurfaceCategory();
+            let docNum = document.getElementById('docNumber').value.trim() || '—';
+            let docDate = document.getElementById('docDate').value;
+            docDate = docDate ? docDate.split('-')[2] + '.' + docDate.split('-')[1] + '.' + docDate.split('-')[0] : '—';
+            let product = document.getElementById('productName').options[document.getElementById('productName').selectedIndex]?.text.split(' (')[0] || '—';
+            let std = document.getElementById('standard').value.trim() || '—';
+            let drawing = document.getElementById('drawingSeries').value;
+            let batchStr = collectItemsString();
+            let concrete = document.getElementById('concreteClass').value.trim() || '—';
+            let reqStrength = document.getElementById('requiredStrength').value.trim() || '—';
+            let release = document.getElementById('releaseStrength').value.trim() || '—';
+            let actual = document.getElementById('actualStrength').value.trim() || '—';
+            let surface = document.getElementById('surfaceCatCombined').value;
+            let weight = document.getElementById('weight').value.trim() || '—';
+            let frost = document.getElementById('frost').value.trim() || '—';
+            let water = document.getElementById('waterproof').value.trim() || '—';
+            let rad = 'I (до 370 Бк/кг)';
+            let otk = document.getElementById('otkChief').value.trim() || '______________';
+            let responsibleFile = document.getElementById('responsibleFile').value.trim();
+            let guarantee = `Предприятие изготовитель гарантирует, что бетон изделий достигнет требуемой прочности в проектном возрасте при условии его твердения в нормальных условиях по ГОСТ 10180-2012.\n\nПредприятие изготовитель гарантирует соответствие изделий требованиям ГОСТ 13015-2012 и нормативно технической документации при соблюдении потребителем правил транспортировки, условий складирования, хранения и применения.\n\nДопускается применение изделий в условиях воздействия антигололедных реагентов, только при устройстве вторичной защиты бетона изделий согласно ГОСТ 31384-2017, СП 28.13330.2017, ОДМ 218.3.095-2017.`;
+            let additionalText = document.getElementById('additionalInfo').value.trim();
+            let includeAdditional = document.getElementById('includeAdditional').checked;
+            let additionalRow = (includeAdditional && additionalText) ? `<tr><td>Дополнительные сведения</td><td>${additionalText.replace(/\n/g, '<br>')}</td></tr>` : '';
+            let signatureBlock = `<div class="signature"><div class="signature-item"><div style="font-weight:bold;">Начальник ОТК</div><div class="underline">${otk}</div></div>${responsibleFile ? `<div class="signature-item"><div style="font-weight:bold;">Мостовой инспектор</div><div class="underline">${responsibleFile}</div></div>` : ''}<div class="signature-item"><div style="font-weight:bold;">М.П.</div><div class="underline" style="border-bottom:none; min-height:25px;"></div></div></div>`;
+            let logoSrc = (document.querySelector('input[name="logoOption"]:checked').value === 'psk') ? '/static/PSK.png' : '/static/K33.png';
+            let logoHtml = `<div style="text-align:center; margin-bottom:15px;"><img src="${logoSrc}" style="max-width:100%; height:auto;"></div>`;
+            let html = `<div class="passport-header-template">${logoHtml}<div class="doc-title">ДОКУМЕНТ О КАЧЕСТВЕ <span>№${docNum}  Выдан ${docDate}</span></div></div>
+            <table class="passport-table">
+                <tr><td>Наименование изделий</td><td>${product}</td></tr>
+                <tr><td>Обозначение стандарта</td><td>${std}</td></tr>
+                <tr><td>Номер серии рабочих чертежей</td><td>${drawing}</td></tr>
+                <tr><td>Марка, количество, номер, дата изготовления изделий</td><td>${batchStr}</td></tr>
+                <tr><td>Проектный класс бетона по прочности и требуемая прочность в проектном возрасте</td><td>${concrete}  Rt=${reqStrength} МПа</td></tr>
+                <tr><td>Отпускная прочность изделия / Фактическая прочность изделия</td><td>${release} / ${actual} МПа</td></tr>
+                <tr><td>Категория бетонной поверхности</td><td>${surface}</td></tr>
+                <tr><td>Масса единицы изделия, т</td><td>${weight}</td></tr>
+                <tr><td>Марка бетона по морозостойкости</td><td>${frost}</td></tr>
+                <tr><td>Марка бетона по водонепроницаемости</td><td>${water}</td></tr>
+                <tr><td>Класс удельной эффективной активности естественных радионуклидов</td><td>${rad}</td></tr>
+                ${additionalRow}
+            </table>
+            <div class="guarantee-block">${guarantee.replace(/\n/g, '<br>')}</div>
+            ${signatureBlock}`;
+            document.getElementById('passportBody').innerHTML = html;
+            document.getElementById('passportModal').style.display = 'flex';
+        }).catch(() => {
+            alert("Не удалось сохранить документ в базу, но паспорт можно сформировать позже.");
+        });
+    }
+
+    function closeModal() { document.getElementById('passportModal').style.display = 'none'; }
+    
+    function saveSelectedValues() {
+        let a = document.getElementById('accountSelect').value;
+        let p = document.getElementById('productName').value;
+        let s = document.getElementById('drawingSeries').value;
+        if (a) localStorage.setItem('selectedInvoiceId', a);
+        if (p) localStorage.setItem('selectedItemId', p);
+        if (s) localStorage.setItem('selectedSeries', s);
+    }
+    
+    function restoreLogoSettings() {
+        let saved = localStorage.getItem('selectedLogo');
+        if (saved) { let r = document.querySelector(`input[name="logoOption"][value="${saved}"]`); if (r) r.checked = true; }
+    }
+    
+    function saveLogoSettings() { localStorage.setItem('selectedLogo', document.querySelector('input[name="logoOption"]:checked').value); }
+
+    window.onload = async function() {
+        document.getElementById('docDate').value = new Date().toISOString().split('T')[0];
+        updateDocNumberField();
+        initDefaultItems();
+        restoreLogoSettings();
+        loadInvoices();
+
+        document.getElementById('surfaceCat1').addEventListener('change', updateSurfaceCategory);
+        document.getElementById('surfaceCat2').addEventListener('change', updateSurfaceCategory);
+        document.getElementById('concreteClass').addEventListener('change', () => { updateRequiredStrength(); updateReleaseStrength(); updateActualStrength(); });
+        document.getElementById('releasePercent').addEventListener('change', () => { updateReleaseStrength(); updateActualStrength(); });
+        document.getElementById('docDate').addEventListener('change', updateDocNumberField);
+        document.getElementById('drawingSeries').addEventListener('change', () => { updateFieldsForSelectedSeries(); saveSelectedValues(); });
+        document.getElementById('productName').addEventListener('change', (e) => {
+            if (e.target.selectedIndex >= 0 && e.target.value) {
+                fillFormFromItem(e.target.options[e.target.selectedIndex]);
+            }
+            saveSelectedValues();
+        });
+        document.getElementById('accountSelect').addEventListener('change', (e) => {
+            loadInvoiceItems(e.target.value);
+            saveSelectedValues();
+        });
+        document.querySelectorAll('input[name="logoOption"]').forEach(r => r.addEventListener('change', saveLogoSettings));
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                const modal = document.getElementById('passportModal');
+                if (modal.style.display === 'flex') closeModal();
+            }
+        });
+        document.getElementById('passportModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        updateTotalQuantity();
+        document.addEventListener('input', function(e) {
+            if (e.target.classList.contains('item-quantity')) updateTotalQuantity();
+        });
+    };
+</script>
+{% endblock %}

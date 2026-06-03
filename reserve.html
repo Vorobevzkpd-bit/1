@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Бронирование готовой продукции{% endblock %}
+{% block content %}
+<h2>🔒 Зарезервировать продукцию</h2>
+<p class="text-muted">Резерв уменьшает свободный остаток, но не списывает партии. Списание произойдёт при отгрузке.</p>
+
+<form method="POST">
+    <div class="form-group">
+        <label>Продукт <span class="text-danger">*</span></label>
+        <select name="product_id" class="form-control" required>
+            <option value="">-- выберите --</option>
+            {% for p in products %}
+            <option value="{{ p[0] }}">{{ p[1] }} (свободно: {{ (p[2]|default(0) - p[3]|default(0))|round(3) }} / всего: {{ p[2]|default(0)|round(3) }})</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Количество <span class="text-danger">*</span></label>
+        <input type="number" name="quantity" class="form-control" step="0.01" min="0.01" required>
+    </div>
+    <div class="form-group">
+        <label>Номер заказа клиента <span class="text-danger">*</span></label>
+        <input type="text" name="customer_order" class="form-control" required placeholder="Например: Договор №45/2026">
+    </div>
+    <div class="form-group">
+        <label>Срок действия резерва (дней)</label>
+        <input type="number" name="expires_days" class="form-control" placeholder="Оставьте пустым – бессрочно">
+        <small class="form-text text-muted">Через указанное количество дней резерв автоматически освободится.</small>
+    </div>
+    <button type="submit" class="btn btn-warning"><i class="fas fa-lock"></i> Зарезервировать</button>
+    <a href="{{ url_for('finished_goods.stock_overview') }}" class="btn btn-secondary">Отмена</a>
+</form>
+
+<hr>
+<a href="{{ url_for('finished_goods.reserved_list') }}" class="btn btn-outline-info">Просмотр активных резервов</a>
+{% endblock %}

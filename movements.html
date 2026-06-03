@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Склад ГП – Журнал движений{% endblock %}
+{% block content %}
+<h2>📒 Журнал движений (проводки)</h2>
+<p class="text-muted">Неизменяемая история всех приходов и расходов по партиям.</p>
+
+<div class="table-responsive">
+    <table class="table table-sm table-striped">
+        <thead class="thead-dark">
+            <tr>
+                <th>ID</th>
+                <th>Продукт</th>
+                <th>Партия</th>
+                <th>Кол-во</th>
+                <th>Тип</th>
+                <th>Документ ID</th>
+                <th>Дата движения</th>
+                <th>Кто создал</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for move in movements %}
+            <tr>
+                <td>{{ move[0] }}</td>
+                <td>{{ move[1] }}</td>
+                <td>{{ move[2] or '—' }}</td>
+                <td>{{ move[3]|default(0)|round(3) }}</td>
+                <td>
+                    {% if move[4] == 'receipt' %}
+                        <span class="badge badge-success">Приход</span>
+                    {% else %}
+                        <span class="badge badge-danger">Расход</span>
+                    {% endif %}
+                 </td>
+                <td>{{ move[6] }} ({{ move[5] }})</td>
+                <td>{{ move[7] }}<br><small>{{ move[7][:10] if move[7] else '—' }}</small></td>
+                <td>{{ move[8] or '—' }}</td>
+             </tr>
+            {% else %}
+            <tr><td colspan="8">Нет движений</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<a href="{{ url_for('finished_goods.stock_overview') }}" class="btn btn-secondary">← Назад</a>
+{% endblock %}

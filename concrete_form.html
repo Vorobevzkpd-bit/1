@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+
+{% block title %}Протокол испытаний бетона{% endblock %}
+
+{% block head_extra %}
+<style>
+    .concrete-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    .section-title {
+        font-weight: bold;
+        font-size: 1.1rem;
+        margin: 15px 0 10px 0;
+        border-bottom: 2px solid #6c757d;
+        padding-bottom: 5px;
+    }
+    .flex-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin: 8px 0;
+    }
+    .flex-item {
+        flex: 1 1 200px;
+    }
+    .flex-item label {
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+    }
+    .strength-table input {
+        width: 100px;
+    }
+    .result-block {
+        background: #e9ecef;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+    }
+    .conclusion-accepted { color: green; font-weight: bold; }
+    .conclusion-rejected { color: red; font-weight: bold; }
+    @media (max-width: 767.98px) {
+        .concrete-card { padding: 12px; }
+        .flex-item { flex: 1 1 100%; }
+        .table-wrapper { overflow-x: auto; }
+        .strength-table { min-width: 400px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="concrete-card">
+    <h1 class="text-center mb-3">ПРОТОКОЛ ИСПЫТАНИЙ БЕТОНА НА СЖАТИЕ</h1>
+
+    <div class="section-title">1. СВЕДЕНИЯ ОБ ОБРАЗЦАХ</div>
+    <div class="flex-row">
+        <div class="flex-item"><label>№ протокола:</label><input type="text" id="protocolNumber" class="form-control" readonly></div>
+        <div class="flex-item"><label>Дата испытания:</label><input type="date" id="testDate" class="form-control"></div>
+        <div class="flex-item"><label>Класс бетона:</label>
+            <select id="concreteClass" class="form-control">
+                <option value="B15">B15</option><option value="B20">B20</option>
+                <option value="B22.5">B22.5</option><option value="B25">B25</option>
+                <option value="B30" selected>B30</option>
+                <option value="B35">B35</option><option value="B40">B40</option>
+            </select>
+        </div>
+        <div class="flex-item"><label>Тип образца:</label>
+            <select id="sampleType" class="form-control">
+                <option value="cube">Куб 150×150 мм</option>
+                <option value="cylinder">Цилиндр 150×300 мм</option>
+            </select>
+        </div>
+        <div class="flex-item"><label>Номер партии:</label><input type="text" id="batchNumber" class="form-control"></div>
+        <div class="flex-item"><label>Изготовитель:</label><input type="text" id="manufacturer" class="form-control"></div>
+    </div>
+
+    <div class="section-title">2. РЕЗУЛЬТАТЫ ИСПЫТАНИЙ</div>
+    <div class="table-wrapper">
+        <table class="table table-bordered strength-table" id="samplesTable">
+            <thead>
+                <tr><th>№ образца</th><th>Разрушающая нагрузка, кН</th><th>Прочность, МПа</th><th></th></tr>
+            </thead>
+            <tbody id="samplesBody">
+                <tr><td>1</td><td><input type="number" step="0.1" class="load form-control" style="width:120px"></td><td class="strength-cell"></td><td><button type="button" class="btn btn-sm btn-danger remove-row">❌</button></td></tr>
+                <tr><td>2</td><td><input type="number" step="0.1" class="load form-control" style="width:120px"></td><td class="strength-cell"></td><td><button type="button" class="btn btn-sm btn-danger remove-row">❌</button></td></tr>
+                <tr><td>3</td><td><input type="number" step="0.1" class="load form-control" style="width:120px"></td><td class="strength-cell"></td><td><button type="button" class="btn btn-sm btn-danger remove-row">❌</button></td></tr>
+            </tbody>
+        </table>
+    </div>
+    <button type="button" id="addRowBtn" class="btn btn-secondary btn-sm mb-3">➕ Добавить образец</button>
+
+    <div class="result-block" id="resultBlock">
+        <strong>Средняя прочность:</strong> <span id="avgStrength">—</span> МПа<br>
+        <strong>Требуемая прочность:</strong> <span id="requiredStrength">—</span> МПа<br>
+        <strong>Заключение:</strong> <span id="conclusionText">—</span>
+    </div>
+
+    <div class="section-title">3. ДОПОЛНИТЕЛЬНЫЕ ДАННЫЕ</div>
+    <div class="flex-row">
+        <div class="flex-item"><label>Плотность, кг/м³:</label><input type="number" id="density" class="form-control" step="10"></div>
+        <div class="flex-item"><label>В/Ц отношение:</label><input type="number" id="waterCementRatio" class="form-control" step="0.01"></div>
+        <div class="flex-item"><label>Примечания:</label><textarea id="notes" class="form-control" rows="2"></textarea></div>
+    </div>
+
+    <div class="section-title">4. ПОДПИСИ</div>
+    <div class="flex-row">
+        <div class="flex-item"><label>Испытание провёл:</label><input type="text" id="testerName" class="form-control"></div>
+        <div class="flex-item"><label>Начальник лаборатории:</label><input type="text" id="labChiefName" class="form-control" value="Аляева А.Р."></div>
+    </div>
+
+    <div class="mt-4">
+        <button type="button" id="saveBtn" class="btn btn-success">💾 Сохранить</button>
+        <button type="button" id="previewBtn" class="btn btn-primary">📄 Предпросмотр</button>
+        {% if test %}
+        <a href="{{ url_for('protocols.concrete_list') }}" class="btn btn-secondary">← К списку</a>
+        {% endif %}
+    </div>
+</div>
+
+<div id="protocolModal" class="modal" tabindex="-1" style="display: none;">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Предпросмотр протокола</h5>
+                <button type="button" class="close" id="closeModalBtn">&times;</button>
+            </div>
+            <div class="modal-body" id="protocolContent"></div>
+            <div class="modal-footer">
+                <button type="button" id="printProtocolBtn" class="btn btn-secondary">🖨️ Печать</button>
+                <button type="button" id="closeModalFooterBtn" class="btn btn-primary">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const strengthClassMap = { "B15": 15, "B20": 20, "B22.5": 22.5, "B25": 25, "B30": 30, "B35": 35, "B40": 40 };
+    
+    function getAreaByType() {
+        const type = document.getElementById('sampleType').value;
+        if (type === 'cube') return 150 * 150;
+        else return Math.PI * 75 * 75;
+    }
+
+    function recalcAllStrengths() {
+        const area = getAreaByType();
+        const loads = document.querySelectorAll('#samplesBody .load');
+        const strengthCells = document.querySelectorAll('#samplesBody .strength-cell');
+        let sum = 0, count = 0;
+        for (let i = 0; i < loads.length; i++) {
+            let kN = parseFloat(loads[i].value);
+            if (!isNaN(kN) && kN > 0) {
+                let MPa = (kN * 1000) / area;
+                strengthCells[i].innerText = MPa.toFixed(1);
+                sum += MPa;
+                count++;
+            } else {
+                strengthCells[i].innerText = '';
+            }
+        }
+        let avg = count > 0 ? sum / count : 0;
+        let required = strengthClassMap[document.getElementById('concreteClass').value] || 30;
+        document.getElementById('avgStrength').innerText = avg.toFixed(1);
+        document.getElementById('requiredStrength').innerText = required;
+        let conclusion = avg >= required ? 'СООТВЕТСТВУЕТ' : 'НЕ СООТВЕТСТВУЕТ';
+        let conclusionClass = avg >= required ? 'conclusion-accepted' : 'conclusion-rejected';
+        document.getElementById('conclusionText').innerHTML = `<span class="${conclusionClass}">${conclusion}</span>`;
+        return { avg, required, conclusion: avg >= required ? 'accepted' : 'rejected' };
+    }
+
+    function attachRowEvents(row) {
+        const loadInput = row.querySelector('.load');
+        if (loadInput) loadInput.addEventListener('input', recalcAllStrengths);
+        const removeBtn = row.querySelector('.remove-row');
+        if (removeBtn) removeBtn.addEventListener('click', () => {
+            if (document.querySelectorAll('#samplesBody tr').length > 1) {
+                row.remove();
+                recalcAllStrengths();
+                renumberRows();
+            }
+        });
+    }
+
+    function renumberRows() {
+        const rows = document.querySelectorAll('#samplesBody tr');
+        rows.forEach((row, idx) => {
+            row.cells[0].innerText = idx + 1;
+        });
+    }
+
+    document.getElementById('addRowBtn').addEventListener('click', () => {
+        const tbody = document.getElementById('samplesBody');
+        const newRow = tbody.insertRow();
+        const rowNum = tbody.rows.length;
+        newRow.innerHTML = `
+            <td>${rowNum}</td>
+            <td><input type="number" step="0.1" class="load form-control" style="width:120px"></td>
+            <td class="strength-cell"></td>
+            <td><button type="button" class="btn btn-sm btn-danger remove-row">❌</button></td>
+        `;
+        attachRowEvents(newRow);
+        recalcAllStrengths();
+    });
+
+    document.querySelectorAll('#samplesBody tr').forEach(row => attachRowEvents(row));
+    document.getElementById('sampleType').addEventListener('change', recalcAllStrengths);
+    document.getElementById('concreteClass').addEventListener('change', recalcAllStrengths);
+
+    function setTodayAndProtocolNumber() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('testDate').value = today;
+        const parts = today.split('-');
+        const num = `${parts[0]}${parts[1]}${parts[2]}/${Math.floor(Math.random() * 1000)}`;
+        document.getElementById('protocolNumber').value = num;
+    }
+    setTodayAndProtocolNumber();
+    recalcAllStrengths();
+
+    function collectFormData() {
+        const loads = [];
+        const strengths = [];
+        document.querySelectorAll('#samplesBody .load').forEach(inp => {
+            const val = parseFloat(inp.value);
+            if (!isNaN(val) && val > 0) loads.push(val);
+        });
+        document.querySelectorAll('#samplesBody .strength-cell').forEach(cell => {
+            const val = parseFloat(cell.innerText);
+            if (!isNaN(val) && val > 0) strengths.push(val);
+        });
+        const { avg, required, conclusion } = recalcAllStrengths();
+        return {
+            protocol_number: document.getElementById('protocolNumber').value,
+            test_date: document.getElementById('testDate').value,
+            concrete_class: document.getElementById('concreteClass').value,
+            sample_type: document.getElementById('sampleType').value,
+            batch_number: document.getElementById('batchNumber').value,
+            manufacturer: document.getElementById('manufacturer').value,
+            required_strength: required,
+            actual_strength: avg,
+            sample_count: loads.length,
+            strength_values: strengths,
+            density: parseFloat(document.getElementById('density').value) || null,
+            water_cement_ratio: parseFloat(document.getElementById('waterCementRatio').value) || null,
+            conclusion: conclusion,
+            notes: document.getElementById('notes').value
+        };
+    }
+
+    function saveConcreteToDatabase(isSilent) {
+        const data = collectFormData();
+        if (!data.conclusion && !isSilent) {
+            alert('Невозможно определить заключение');
+            return Promise.reject('no conclusion');
+        }
+        return fetch(window.location.href, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (!isSilent) {
+                    alert('✅ ' + data.message);
+                }
+                return true;
+            } else {
+                throw new Error(data.message || 'Ошибка сохранения');
+            }
+        })
+        .catch(error => {
+            if (!isSilent) alert('Ошибка: ' + error.message);
+            console.error(error);
+            return false;
+        });
+    }
+
+    function buildProtocolHTML() {
+        const data = collectFormData();
+        const conclusionText = data.conclusion === 'accepted' ? 'СООТВЕТСТВУЕТ' : 'НЕ СООТВЕТСТВУЕТ';
+        let samplesHtml = '';
+        const loads = document.querySelectorAll('#samplesBody .load');
+        const strengths = document.querySelectorAll('#samplesBody .strength-cell');
+        for (let i = 0; i < loads.length; i++) {
+            samplesHtml += `<tr>
+                <td>${i + 1}</td>
+                <td>${loads[i].value || '—'}</td>
+                <td>${strengths[i].innerText || '—'}</td>
+            </tr>`;
+        }
+        return `
+            <div style="text-align:center; margin-bottom:15px;">
+                <img src="/static/PSK.png" onerror="this.style.display='none'" style="max-width:200px;">
+            </div>
+            <h2 style="text-align:center;">ПРОТОКОЛ № ${data.protocol_number}</h2>
+            <h3 style="text-align:center;">ИСПЫТАНИЙ БЕТОНА НА СЖАТИЕ</h3>
+            <p style="text-align:right;">Дата испытания: ${data.test_date}</p>
+            <h3>1. СВЕДЕНИЯ ОБ ОБРАЗЦАХ</h3>
+            <p>Класс бетона: ${data.concrete_class}<br>
+            Тип образца: ${data.sample_type === 'cube' ? 'Куб 150×150 мм' : 'Цилиндр 150×300 мм'}<br>
+            Номер партии: ${data.batch_number || '—'}<br>
+            Изготовитель: ${data.manufacturer || '—'}</p>
+            <h3>2. РЕЗУЛЬТАТЫ ИСПЫТАНИЙ</h3>
+            <table border="1" style="width:100%; border-collapse: collapse;">
+                <thead><tr><th>№ образца</th><th>Разрушающая нагрузка, кН</th><th>Прочность, МПа</th></tr></thead>
+                <tbody>${samplesHtml}</tbody>
+            </table>
+            <h3>3. ЗАКЛЮЧЕНИЕ</h3>
+            <p>Средняя прочность: ${data.actual_strength.toFixed(1)} МПа<br>
+            Требуемая прочность: ${data.required_strength} МПа<br>
+            <strong>Испытанные образцы ${conclusionText} требованиям ГОСТ 10180-2012</strong></p>
+            <h3>4. ПОДПИСИ</h3>
+            <p>Испытание провёл: ${document.getElementById('testerName').value || '_________'}<br>
+            Начальник лаборатории: ${document.getElementById('labChiefName').value || '_________'}</p>
+        `;
+    }
+
+    const modal = document.getElementById('protocolModal');
+    const protocolContent = document.getElementById('protocolContent');
+    function showModal() {
+        saveConcreteToDatabase(true).finally(() => {
+            protocolContent.innerHTML = buildProtocolHTML();
+            modal.style.display = 'block';
+        });
+    }
+    function closeModal() { modal.style.display = 'none'; }
+    document.getElementById('saveBtn')?.addEventListener('click', () => saveConcreteToDatabase(false));
+    document.getElementById('previewBtn')?.addEventListener('click', showModal);
+    document.getElementById('closeModalBtn')?.addEventListener('click', closeModal);
+    document.getElementById('closeModalFooterBtn')?.addEventListener('click', closeModal);
+    document.getElementById('printProtocolBtn')?.addEventListener('click', () => window.print());
+    window.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    {% if test %}
+    // Загрузка данных для редактирования
+    document.getElementById('protocolNumber').value = "{{ test.protocol_number }}";
+    document.getElementById('testDate').value = "{{ test.test_date }}";
+    document.getElementById('concreteClass').value = "{{ test.concrete_class }}";
+    document.getElementById('sampleType').value = "{{ test.sample_type or 'cube' }}";
+    document.getElementById('batchNumber').value = "{{ test.batch_number or '' }}";
+    document.getElementById('manufacturer').value = "{{ test.manufacturer or '' }}";
+    document.getElementById('density').value = "{{ test.density or '' }}";
+    document.getElementById('waterCementRatio').value = "{{ test.water_cement_ratio or '' }}";
+    document.getElementById('notes').value = "{{ test.notes or '' }}";
+    {% if test.strength_values %}
+    const strengths = {{ test.strength_values|safe }};
+    const tbody = document.getElementById('samplesBody');
+    tbody.innerHTML = '';
+    for (let i = 0; i < strengths.length; i++) {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${i + 1}</td>
+            <td><input type="number" step="0.1" class="load form-control" style="width:120px" value="${(strengths[i] * getAreaByType() / 1000).toFixed(1)}"></td>
+            <td class="strength-cell">${strengths[i].toFixed(1)}</td>
+            <td><button type="button" class="btn btn-sm btn-danger remove-row">❌</button></td>
+        `;
+        attachRowEvents(row);
+    }
+    {% endif %}
+    recalcAllStrengths();
+    {% endif %}
+</script>
+{% endblock %}

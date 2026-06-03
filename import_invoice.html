@@ -1,0 +1,87 @@
+{# app/templates/admin/import_invoice.html #}
+{% extends "base.html" %}
+
+{% block title %}Импорт счетов и номенклатуры{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Импорт данных из Excel</h2>
+    <p class="text-muted">Загрузите файл в формате <strong>.xlsx</strong> со структурой, соответствующей шаблону.</p>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-upload"></i> Ручной импорт
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="file" class="form-label">Excel файл</label>
+                            <input type="file" class="form-control" id="file" name="file" accept=".xlsx,.xls" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Загрузить и импортировать
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-envelope"></i> Email-импорт (заглушка)
+                </div>
+                <div class="card-body">
+                    <p>Для тестирования email-импорта положите файл <code>/tmp/email_invoice.xlsx</code> на сервере.</p>
+                    <form method="POST" action="{{ url_for('invoice.check_email_import') }}">
+                        <button type="submit" class="btn btn-secondary">
+                            <i class="fas fa-envelope"></i> Проверить почту (тест)
+                        </button>
+                    </form>
+                    <hr>
+                    <p class="text-muted small mt-2">
+                        <i class="fas fa-info-circle"></i> 
+                        Реальный email-обработчик требует настройки IMAP. 
+                        После настройки раскомментируйте код в <code>invoice/routes.py</code>.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-info-circle"></i> Требования к файлу
+        </div>
+        <div class="card-body">
+            <p>Файл Excel должен содержать следующие колонки:</p>
+            <div class="row">
+                <div class="col-md-6">
+                    <ul>
+                        <li><strong>№ счета</strong> * — уникальный номер</li>
+                        <li><strong>№ строки</strong> * — порядковый номер</li>
+                        <li><strong>Наименование изделия</strong> *</li>
+                        <li><strong>Чертеж / НТД</strong></li>
+                        <li><strong>Класс бетона</strong> (B25, B30...)</li>
+                        <li><strong>Морозостойкость</strong> (F200, F300)</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <ul>
+                        <li><strong>Водонепроницаемость</strong> (W6, W8)</li>
+                        <li><strong>Категория поверхности</strong> (А6, А7)</li>
+                        <li><strong>Отпускная прочность</strong> (в %)</li>
+                        <li><strong>Объем единицы (м³)</strong></li>
+                        <li><strong>Количество (шт)</strong></li>
+                        <li><strong>Срок окончания</strong> (дата)</li>
+                        <li><strong>Заказчик</strong></li>
+                    </ul>
+                </div>
+            </div>
+            <p class="text-muted small">* — обязательные поля</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

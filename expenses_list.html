@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Управление документами – Расходные ордера (только директор){% endblock %}
+{% block content %}
+<h2>📤 Расходные ордера (склад ГП)</h2>
+<p class="text-muted">Список всех расходных документов (отгрузки, списание в брак, возврат поставщику).</p>
+
+<div class="table-responsive">
+    <table class="table table-sm table-striped">
+        <thead class="thead-dark">
+            <tr>
+                <th>ID</th>
+                <th>№ документа</th>
+                <th>Дата</th>
+                <th>Тип операции</th>
+                <th>Заказчик / контрагент</th>
+                <th>Проведён</th>
+                <th>Удалён</th>
+                <th>Создатель</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in expenses %}
+            <tr>
+                <td>{{ e[0] }}</td>
+                <td>{{ e[1] }}</td>
+                <td>{{ e[2] }}</td>
+                <td>
+                    {% if e[3] == 'shipment' %}
+                        <span class="badge badge-primary">Отгрузка</span>
+                    {% elif e[3] == 'write_off_to_reject' %}
+                        <span class="badge badge-danger">Списание в брак</span>
+                    {% else %}
+                        <span class="badge badge-warning">Возврат поставщику</span>
+                    {% endif %}
+                </td>
+                <td>{{ e[4] or '—' }}</td>
+                <td>{{ '✅' if e[5] else '❌' }}</td>
+                <td>{{ '🗑️' if e[6] else '—' }}</td>
+                <td>{{ e[7] or '—' }}</td>
+                <td>
+                    {% if not e[6] and has_permission('manage_finished_goods') %}
+                    <form method="POST" action="{{ url_for('finished_goods.delete_expense', doc_id=e[0]) }}" style="display:inline;" onsubmit="return confirm('Пометить документ как удалённый?')">
+                        <button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash-alt"></i> Удалить</button>
+                    </form>
+                    {% else %}
+                    <span class="text-muted">Удалён</span>
+                    {% endif %}
+                 </td>
+             </tr>
+            {% else %}
+            <tr><td colspan="9">Нет расходных ордеров</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<a href="{{ url_for('finished_goods.stock_overview') }}" class="btn btn-secondary">← Назад</a>
+<a href="{{ url_for('finished_goods.receipts_list') }}" class="btn btn-outline-info">Приходные ордера</a>
+{% endblock %}

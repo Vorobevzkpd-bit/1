@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %}Сменное задание - {{ selected_date.strftime('%d.%m.%Y') }}, {{ '1-я смена (8:00-20:00)' if shift == 1 else '2-я смена (20:00-8:00)' }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    @media print {
+        .no-print { display: none !important; }
+        .print-container { margin: 0; padding: 0; }
+        .task-card { box-shadow: none; border: 1px solid #ddd; }
+        .footer { display: none; }
+        button, .btn, .shift-selector, .lang-selector { display: none; }
+    }
+    .task-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .doc-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #1e3a5f;
+        text-align: center;
+        margin-bottom: 5px;
+    }
+    .doc-subtitle {
+        color: #6c757d;
+        font-size: 0.85rem;
+        text-align: center;
+        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+    }
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+        padding: 8px 12px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    .info-item {
+        font-size: 0.85rem;
+    }
+    .info-item strong { color: #1e3a5f; }
+    .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+        font-size: 0.8rem;
+    }
+    .items-table th, .items-table td {
+        border: 1px solid #dee2e6;
+        padding: 6px 4px;
+        text-align: center;
+        vertical-align: top;
+    }
+    .items-table th {
+        background-color: #e9ecef;
+        font-weight: 600;
+    }
+    .items-table td:first-child { text-align: left; }
+    .total-row { background-color: #e2e3e5; font-weight: 700; }
+    .shift-selector, .lang-selector {
+        display: inline-flex;
+        gap: 5px;
+        align-items: center;
+    }
+    .shift-btn, .lang-btn {
+        background: #e9ecef;
+        border: 1px solid #ced4da;
+        padding: 4px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.7rem;
+        transition: all 0.2s;
+    }
+    .shift-btn.active, .lang-btn.active {
+        background: #1e3a5f;
+        color: white;
+        border-color: #1e3a5f;
+    }
+    .nav-buttons {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .date-nav {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    .btn-print {
+        background: #1e3a5f;
+        color: white;
+        border: none;
+        padding: 5px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.8rem;
+    }
+    .notes-block {
+        margin-top: 20px;
+        padding: 10px 12px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        font-size: 0.75rem;
+    }
+    .notes-block ul { margin: 5px 0 0 20px; }
+    .lang-version { display: none; }
+    .lang-version.active { display: block; }
+    @media (max-width: 768px) {
+        .items-table { font-size: 0.65rem; }
+        .doc-title { font-size: 1rem; }
+        .info-item { font-size: 0.7rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="print-container">
+    <div class="nav-buttons no-print">
+        <div class="date-nav">
+            <a href="{{ url_for('production.daily_task', date=prev_date.strftime('%Y-%m-%d'), shift=shift) }}" class="btn btn-outline-secondary btn-sm">← {{ prev_date.strftime('%d.%m.%Y') }}</a>
+            <h4 class="mb-0">{{ selected_date.strftime('%d.%m.%Y') }}</h4>
+            <a href="{{ url_for('production.daily_task', date=next_date.strftime('%Y-%m-%d'), shift=shift) }}" class="btn btn-outline-secondary btn-sm">{{ next_date.strftime('%d.%m.%Y') }} →</a>
+        </div>
+        <div>
+            <div class="shift-selector">
+                <button class="shift-btn {% if shift == 1 %}active{% endif %}" data-shift="1">1 смена (8:00-20:00)</button>
+                <button class="shift-btn {% if shift == 2 %}active{% endif %}" data-shift="2">2 смена (20:00-8:00)</button>
+            </div>
+            <div class="lang-selector">
+                <button class="lang-btn" data-lang="ru">🇷🇺 Русский</button>
+                <button class="lang-btn" data-lang="uz">🇺🇿 O'zbekcha</button>
+                <button class="lang-btn" data-lang="tj">🇹🇯 Тоҷикӣ</button>
+                <button class="lang-btn" data-lang="kp">🇰🇵 조선말</button>
+            </div>
+            <button class="btn-print" onclick="window.print()"><i class="fas fa-print"></i> Печать</button>
+        </div>
+    </div>
+
+    <!-- РУССКИЙ -->
+    <div class="lang-version" data-lang="ru">
+        <div class="task-card">
+            <div class="doc-title">СМЕННОЕ ЗАДАНИЕ</div>
+            <div class="doc-subtitle">на формовку железобетонных изделий</div>
+            <div class="info-row">
+                <div class="info-item"><strong>Дата смены:</strong> {{ selected_date.strftime('%d.%m.%Y') }}</div>
+                <div class="info-item"><strong>Смена:</strong> {{ '1-я смена (8:00-20:00)' if shift == 1 else '2-я смена (20:00-8:00)' }}</div>
+                <div class="info-item"><strong>Участок:</strong> Формовочный цех №1</div>
+            </div>
+            {% if items %}
+            <table class="items-table">
+                <thead><tr><th>№</th><th>Наименование изделия</th><th>Чертёж / НТД</th><th>Класс бетона</th><th>Морозостойкость</th><th>Водонепроницаемость</th><th>Кол-во (шт)</th><th>Объём ед. (м³)</th><th>Всего объём (м³)</th><th>Заказчик</th></tr></thead>
+                <tbody>{% for item in items %}<tr><td>{{ loop.index }}</td><td style="text-align: left;">{{ item.product_name }}</td><td>{{ item.drawing }}</td><td>{{ item.concrete_class }}</td><td>{{ item.frost_resistance }}</td><td>{{ item.water_resistance }}</td><td>{{ item.quantity|round(1) }}</td><td>{{ "%.3f"|format(item.volume_m3) }}</td><td>{{ "%.2f"|format(item.planned_volume) }}</td><td>{{ item.customer }}</td></tr>{% endfor %}
+                <tr class="total-row"><td colspan="6"><strong>ИТОГО:</strong></td><td><strong>{{ total_quantity|round(1) }}</strong></td><td><strong>—</strong></td><td><strong>{{ "%.2f"|format(total_volume) }}</strong></td><td><strong>—</strong></td></tr>
+                </tbody>
+            </table>
+            {% else %}<div class="alert alert-warning text-center">На {{ selected_date.strftime('%d.%m.%Y') }} в {{ 'первую' if shift == 1 else 'вторую' }} смену нет запланированных изделий.</div>{% endif %}
+            <div class="notes-block"><strong>📋 Примечания и особые указания:</strong><ul><li>Перед началом формовки проверить чистоту форм, наличие смазки, правильность установки закладных деталей и арматурных каркасов.</li><li>Перед формовкой обязательно предъявить ОТК.</li><li>Отклонения геометрических размеров – в пределах допусков, указанных в нормативной документации.</li><li>Запрещается использование форм с повреждениями, влияющими на качество изделий.</li><li>По окончании смены сдать готовые изделия на склад вместе с сопроводительной документацией.</li></ul></div>
+            <div class="text-center small text-muted mt-2">Документ сформирован автоматически {{ now().strftime('%d.%m.%Y %H:%M') }}</div>
+        </div>
+    </div>
+
+    <!-- УЗБЕКСКИЙ -->
+    <div class="lang-version" data-lang="uz">
+        <div class="task-card">
+            <div class="doc-title">SMENALI TOPSHIRIQ</div>
+            <div class="doc-subtitle">temir-beton buyumlarini qolipga quyish bo'yicha</div>
+            <div class="info-row">
+                <div class="info-item"><strong>Smena sanasi:</strong> {{ selected_date.strftime('%d.%m.%Y') }}</div>
+                <div class="info-item"><strong>Smena:</strong> {{ '1-smena (8:00-20:00)' if shift == 1 else '2-smena (20:00-8:00)' }}</div>
+                <div class="info-item"><strong>Uchastka:</strong> Qolipga quyish sexi №1</div>
+            </div>
+            {% if items %}
+            <table class="items-table">
+                <thead><tr><th>№</th><th>Buyum nomi</th><th>Chizma / NTD</th><th>Beton klassi</th><th>Sovuqqa chidamlilik</th><th>Suv o'tkazmaslik</th><th>Soni (dona)</th><th>Birlik hajmi (m³)</th><th>Umumiy hajm (m³)</th><th>Buyurtmachi</th></tr></thead>
+                <tbody>{% for item in items %}<tr><td>{{ loop.index }}</td><td style="text-align: left;">{{ item.product_name }}</td><td>{{ item.drawing }}</td><td>{{ item.concrete_class }}</td><td>{{ item.frost_resistance }}</td><td>{{ item.water_resistance }}</td><td>{{ item.quantity|round(1) }}</td><td>{{ "%.3f"|format(item.volume_m3) }}</td><td>{{ "%.2f"|format(item.planned_volume) }}</td><td>{{ item.customer }}</td></tr>{% endfor %}
+                <tr class="total-row"><td colspan="6"><strong>JAMI:</strong></td><td><strong>{{ total_quantity|round(1) }}</strong></td><td><strong>—</strong></td><td><strong>{{ "%.2f"|format(total_volume) }}</strong></td><td><strong>—</strong></td></tr>
+                </tbody>
+            </table>
+            {% else %}<div class="alert alert-warning text-center">{{ selected_date.strftime('%d.%m.%Y') }} kuni {{ 'birinchi' if shift == 1 else 'ikkinchi' }} smenada rejalashtirilgan mahsulotlar yo'q.</div>{% endif %}
+            <div class="notes-block"><strong>📋 Eslatmalar va maxsus ko'rsatmalar:</strong><ul><li>Qolipga quyishni boshlashdan oldin qoliplarning tozaligini, moylanganligini, o'rnatilgan detallar va armatura karkaslarining to'g'riligini tekshirish.</li><li>Qolipga quyishdan oldin majburiy ravishda TKB (Texnik Nazorat Bo'limi) ga taqdim etish.</li><li>Geometrik o'lchamlarning og'ishi – me'yoriy hujjatlarda ko'rsatilgan ruxsat etilgan chegaralar doirasida.</li><li>Mahsulot sifatiga ta'sir qiluvchi shikastlangan qoliplardan foydalanish taqiqlanadi.</li><li>Smena tugagach, tayyor mahsulotlarni hujjatlar bilan birga omborga topshirish.</li></ul></div>
+            <div class="text-center small text-muted mt-2">Hujjat avtomatik tarzda shakllantirildi {{ now().strftime('%d.%m.%Y %H:%M') }}</div>
+        </div>
+    </div>
+
+    <!-- ТАДЖИКСКИЙ -->
+    <div class="lang-version" data-lang="tj">
+        <div class="task-card">
+            <div class="doc-title">СУПОРИШИ СМЕНАВӢ</div>
+            <div class="doc-subtitle">оид ба қолибкунии маҳсулоти оҳану бетонӣ</div>
+            <div class="info-row">
+                <div class="info-item"><strong>Санаи смена:</strong> {{ selected_date.strftime('%d.%m.%Y') }}</div>
+                <div class="info-item"><strong>Смена:</strong> {{ 'Сменаи 1 (8:00-20:00)' if shift == 1 else 'Сменаи 2 (20:00-8:00)' }}</div>
+                <div class="info-item"><strong>Қисмат:</strong> Сехи қолибкунӣ №1</div>
+            </div>
+            {% if items %}
+            <table class="items-table">
+                <thead><tr><th>№</th><th>Номи маҳсулот</th><th>Расм / НТД</th><th>Синфи бетон</th><th>Ба сардӣ тобоварӣ</th><th>Ба об гузарондагӣ</th><th>Миқдор (доно)</th><th>Ҳаҷми воҳид (м³)</th><th>Ҳаҷми умумӣ (м³)</th><th>Фармоишгар</th></tr></thead>
+                <tbody>{% for item in items %}<tr><td>{{ loop.index }}</td><td style="text-align: left;">{{ item.product_name }}</td><td>{{ item.drawing }}</td><td>{{ item.concrete_class }}</td><td>{{ item.frost_resistance }}</td><td>{{ item.water_resistance }}</td><td>{{ item.quantity|round(1) }}</td><td>{{ "%.3f"|format(item.volume_m3) }}</td><td>{{ "%.2f"|format(item.planned_volume) }}</td><td>{{ item.customer }}</td></tr>{% endfor %}
+                <tr class="total-row"><td colspan="6"><strong>ҲАМАГӢ:</strong></td><td><strong>{{ total_quantity|round(1) }}</strong></td><td><strong>—</strong></td><td><strong>{{ "%.2f"|format(total_volume) }}</strong></td><td><strong>—</strong></td></tr>
+                </tbody>
+            </table>
+            {% else %}<div class="alert alert-warning text-center">Барои {{ selected_date.strftime('%d.%m.%Y') }} дар сменаи {{ '1' if shift == 1 else '2' }} маҳсулоти банақшагирифта вуҷуд надорад.</div>{% endif %}
+            <div class="notes-block"><strong>📋 Эзоҳҳо ва дастурҳои махсус:</strong><ul><li>Пеш оғози қолибкунӣ тозагии қолибҳо, мавҷудияти равған, дурустии насби қисмҳои гузошташаванда ва чаҳорчӯбҳои арматуриро санҷед.</li><li>Пеш аз қолибкунӣ ҳатман ба Шуъбаи назорати техникӣ пешниҳод кунед.</li><li>Андозаҳои геометрӣ – дар доираи таҳаммулпазирии дар ҳуҷҷатҳои меъёрӣ нишондодашуда.</li><li>Истифодаи қолибҳои осебдида, ки ба сифати маҳсулот таъсир мерасонанд, манъ аст.</li><li>Пас аз анҷоми смена маҳсулоти тайёрро бо ҳуҷҷатҳо ба анбор супоред.</li></ul></div>
+            <div class="text-center small text-muted mt-2">Ҳуҷҷат ба таври автоматӣ таҳия шуд {{ now().strftime('%d.%m.%Y %H:%M') }}</div>
+        </div>
+    </div>
+
+    <!-- СЕВЕРОКОРЕЙСКИЙ -->
+    <div class="lang-version" data-lang="kp">
+        <div class="task-card">
+            <div class="doc-title">교대임무</div>
+            <div class="doc-subtitle">철근콘크리트제품 거푸집형성에 관한</div>
+            <div class="info-row">
+                <div class="info-item"><strong>교대 날짜:</strong> {{ selected_date.strftime('%d.%m.%Y') }}</div>
+                <div class="info-item"><strong>교대:</strong> {{ '1교대 (8:00-20:00)' if shift == 1 else '2교대 (20:00-8:00)' }}</div>
+                <div class="info-item"><strong>작업반:</strong> 거푸집형성 작업반 №1</div>
+            </div>
+            {% if items %}
+            <table class="items-table">
+                <thead><tr><th>번호</th><th>제품명</th><th>도면 / 규격</th><th>콘크리트 등급</th><th>내한성</th><th>방수성</th><th>수량 (개)</th><th>단위 용적 (m³)</th><th>총 용적 (m³)</th><th>발주처</th></tr></thead>
+                <tbody>{% for item in items %}<tr><td>{{ loop.index }}</td><td style="text-align: left;">{{ item.product_name }}</td><td>{{ item.drawing }}</td><td>{{ item.concrete_class }}</td><td>{{ item.frost_resistance }}</td><td>{{ item.water_resistance }}</td><td>{{ item.quantity|round(1) }}</td><td>{{ "%.3f"|format(item.volume_m3) }}</td><td>{{ "%.2f"|format(item.planned_volume) }}</td><td>{{ item.customer }}</td></tr>{% endfor %}
+                <tr class="total-row"><td colspan="6"><strong>합계:</strong></td><td><strong>{{ total_quantity|round(1) }}</strong></td><td><strong>—</strong></td><td><strong>{{ "%.2f"|format(total_volume) }}</strong></td><td><strong>—</strong></td></tr>
+                </tbody>
+            </table>
+            {% else %}<div class="alert alert-warning text-center">{{ selected_date.strftime('%d.%m.%Y') }} 날에 {{ '1' if shift == 1 else '2' }} 교대에 계획된 제품이 없습니다.</div>{% endif %}
+            <div class="notes-block"><strong>📋 참고 및 특별지시:</strong><ul><li>거푸집형성을 시작하기전 거푸집 청결, 윤활유 도포, 매입부품 및 철근골대 설치의 정확성 확인.</li><li>거푸집형성전 기술검사과에 반드시 제출.</li><li>기하학적 치수 편차 – 규정문서에 제시된 허용범위 내.</li><li>제품 품질에 영향을 주는 손상된 거푸집 사용 금지.</li><li>교대가 끝난 후 완제품을 문서와 함께 창고에 인계.</li></ul></div>
+            <div class="text-center small text-muted mt-2">문서 자동 생성됨 {{ now().strftime('%d.%m.%Y %H:%M') }}</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('.shift-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const shift = this.dataset.shift;
+            const url = new URL(window.location.href);
+            url.searchParams.set('shift', shift);
+            window.location.href = url.toString();
+        });
+    });
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const lang = this.dataset.lang;
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            document.querySelectorAll('.lang-version').forEach(v => v.classList.remove('active'));
+            document.querySelector(`.lang-version[data-lang="${lang}"]`).classList.add('active');
+        });
+    });
+    document.querySelector('.lang-btn[data-lang="ru"]').classList.add('active');
+    document.querySelector('.lang-version[data-lang="ru"]').classList.add('active');
+</script>
+{% endblock %}

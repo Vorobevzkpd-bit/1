@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+{% block title %}💬 Диалог с {{ other_user.full_name }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    .chat-container {
+        background: white;
+        border-radius: 1rem;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 120px);
+        min-height: 500px;
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.1);
+    }
+    .chat-header {
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        padding: 0.75rem 1rem;
+    }
+    .chat-header h4 {
+        margin: 0;
+        color: #212529;
+        font-weight: 600;
+    }
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        background: #ffffff;
+    }
+    .message {
+        display: flex;
+        max-width: 80%;
+        animation: fadeIn 0.2s ease;
+    }
+    .message-mine {
+        align-self: flex-end;
+        flex-direction: row-reverse;
+    }
+    .message-other {
+        align-self: flex-start;
+    }
+    .message-bubble {
+        padding: 0.6rem 1rem;
+        border-radius: 1.2rem;
+        word-wrap: break-word;
+    }
+    .message-mine .message-bubble {
+        background: white;
+        border: 1px solid #dee2e6;
+        color: #212529;
+    }
+    .message-other .message-bubble {
+        background: #f0f2f5;
+        border: 1px solid #dee2e6;
+        color: #212529;
+    }
+    .message-info {
+        font-size: 0.7rem;
+        color: #6c757d;
+        margin-bottom: 0.2rem;
+        display: flex;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+    .message-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #e9ecef;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 0.5rem;
+        font-weight: bold;
+        color: #495057;
+    }
+    .chat-input {
+        background: white;
+        padding: 0.75rem;
+        border-top: 1px solid #dee2e6;
+    }
+    .input-group {
+        border-radius: 2rem;
+        overflow: hidden;
+    }
+    .input-group input {
+        border: 1px solid #dee2e6;
+        border-right: none;
+        background: white;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+    }
+    .input-group input:focus {
+        background: white;
+        outline: none;
+        box-shadow: none;
+    }
+    .input-group-append button {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-left: none;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        color: #212529;
+        transition: all 0.2s;
+    }
+    .input-group-append button:hover {
+        background: #f8f9fa;
+        color: #212529;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @media (max-width: 768px) {
+        .chat-container { height: calc(100vh - 100px); }
+        .message { max-width: 90%; }
+        .message-bubble { font-size: 0.9rem; padding: 0.5rem 0.8rem; }
+        .input-group input { padding: 0.6rem 1rem; font-size: 0.9rem; }
+        .input-group-append button { padding: 0.6rem 1.2rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="chat-container">
+        <div class="chat-header d-flex justify-content-between align-items-center">
+            <h4><i class="fas fa-user-circle"></i> {{ other_user.full_name }}</h4>
+            <a href="{{ url_for('chat.pm_inbox') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Назад
+            </a>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            {% for msg in messages %}
+            <div class="message {% if msg.from_user_id == session.user_id %}message-mine{% else %}message-other{% endif %}" data-id="{{ msg.id }}">
+                {% if msg.from_user_id != session.user_id %}
+                <div class="message-avatar">
+                    {{ msg.from_user.full_name[0]|upper }}
+                </div>
+                {% endif %}
+                <div>
+                    <div class="message-info">
+                        <span>{{ msg.from_user.full_name }}</span>
+                        <span>{{ msg.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                    </div>
+                    <div class="message-bubble">
+                        {{ msg.message }}
+                    </div>
+                </div>
+                {% if msg.from_user_id == session.user_id %}
+                <div class="message-avatar ms-2" style="background: #e9ecef;">
+                    {{ msg.from_user.full_name[0]|upper }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        <div class="chat-input">
+            <div class="input-group">
+                <input type="text" id="messageInput" class="form-control" placeholder="Введите сообщение...">
+                <div class="input-group-append">
+                    <button class="btn" id="sendButton">
+                        <i class="fas fa-paper-plane"></i> Отправить
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    const otherUserId = {{ other_user.id }};
+    let lastMessageId = 0;
+    const messagesDiv = $('#chatMessages');
+    const messageInput = $('#messageInput');
+    const sendButton = $('#sendButton');
+
+    {% if messages %}
+        lastMessageId = {{ messages[-1].id }};
+    {% endif %}
+
+    function escapeHtml(text) {
+        return $('<div/>').text(text).html();
+    }
+
+    function formatTime(isoString) {
+        const date = new Date(isoString);
+        return date.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function scrollToBottom() {
+        messagesDiv.scrollTop(messagesDiv[0].scrollHeight);
+    }
+
+    function addMessage(msg, isNew) {
+        const isMine = (msg.from_user_id === {{ session.user_id }});
+        let avatar = '';
+        if (!isMine) avatar = `<div class="message-avatar">${escapeHtml(msg.from_user_name.charAt(0))}</div>`;
+        const messageDiv = $('<div>').addClass('message ' + (isMine ? 'message-mine' : 'message-other'));
+        messageDiv.html(`
+            ${avatar}
+            <div>
+                <div class="message-info">
+                    <span>${escapeHtml(msg.from_user_name)}</span>
+                    <span>${formatTime(msg.datetime)}</span>
+                </div>
+                <div class="message-bubble">${escapeHtml(msg.message)}</div>
+            </div>
+            ${isMine ? `<div class="message-avatar ms-2" style="background: #e9ecef;">${escapeHtml(msg.from_user_name.charAt(0))}</div>` : ''}
+        `);
+        messagesDiv.append(messageDiv);
+        if (isNew) scrollToBottom();
+    }
+
+    function loadNewMessages() {
+        $.getJSON('/chat/api/pm/messages?other_user_id=' + otherUserId)
+            .done(function(messages) {
+                if (messages.length) {
+                    messages.forEach(msg => {
+                        if (msg.id > lastMessageId) {
+                            addMessage(msg, true);
+                            lastMessageId = msg.id;
+                        }
+                    });
+                }
+            })
+            .fail(function() { console.error('Ошибка загрузки сообщений'); });
+    }
+
+    function sendMessage() {
+        const message = messageInput.val().trim();
+        if (!message) return;
+        $.ajax({
+            url: '/chat/api/pm/send',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ to_user_id: otherUserId, message: message }),
+            dataType: 'json'
+        })
+        .done(function(data) {
+            if (data.success) {
+                messageInput.val('');
+                loadNewMessages();
+            } else {
+                alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+            }
+        })
+        .fail(function() { alert('Ошибка соединения'); });
+    }
+
+    sendButton.click(sendMessage);
+    messageInput.keypress(function(e) { if (e.which == 13) sendMessage(); });
+    loadNewMessages();
+    setInterval(loadNewMessages, 2000);
+    scrollToBottom();
+});
+</script>
+{% endblock %}

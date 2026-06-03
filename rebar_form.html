@@ -1,0 +1,507 @@
+{% extends "base.html" %}
+
+{% block title %}Протокол испытаний арматурной стали{% endblock %}
+
+{% block head_extra %}
+<style>
+    .rebar-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    .section-title {
+        font-weight: bold;
+        font-size: 1.1rem;
+        margin: 15px 0 10px 0;
+        border-bottom: 2px solid #6c757d;
+        padding-bottom: 5px;
+    }
+    .rebar-table th {
+        background-color: #f1f1f1;
+    }
+    .noncompliant {
+        background-color: #ffcccc !important;
+    }
+    .flex-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin: 8px 0;
+    }
+    .flex-item {
+        flex: 1 1 180px;
+    }
+    .flex-item label {
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+    }
+    .signature-block {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 25px;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+    .signature-item {
+        flex: 1;
+        min-width: 200px;
+    }
+    .modal-rebar {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+    .modal-rebar.show {
+        display: flex;
+    }
+    .modal-content-rebar {
+        background: white;
+        width: 95%;
+        max-width: 1200px;
+        max-height: 90vh;
+        overflow: auto;
+        padding: 20px;
+        border-radius: 8px;
+        border: 2px solid #6c757d;
+        position: relative;
+    }
+    .close-btn-rebar {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 28px;
+        cursor: pointer;
+        color: #6c757d;
+    }
+    .close-btn-rebar:hover {
+        color: black;
+    }
+    .logo-selector {
+        background: #f1f3f5;
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        display: flex;
+        gap: 20px;
+        align-items: center;
+    }
+    .logo-selector label {
+        cursor: pointer;
+        font-weight: normal;
+        margin: 0;
+    }
+    #ajaxMessage {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+        padding: 8px;
+        border-radius: 4px;
+        margin-bottom: 12px;
+        display: none;
+    }
+    @media print {
+        .modal-rebar {
+            display: block;
+            position: relative;
+            background: none;
+        }
+        .modal-content-rebar {
+            box-shadow: none;
+            padding: 0;
+            border: none;
+        }
+        .close-btn-rebar, .btn-rebar:not(.btn-print) {
+            display: none;
+        }
+    }
+    @media (max-width: 767.98px) {
+        .rebar-card { padding: 12px; }
+        .section-title { font-size: 1rem; }
+        .flex-item { flex: 1 1 100%; }
+        .logo-selector { flex-direction: column; align-items: flex-start; gap: 8px; }
+        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 15px; }
+        .table-wrapper table { min-width: 500px; }
+        .rebar-table input, .rebar-table select { font-size: 14px !important; padding: 6px 8px; }
+        .mt-4 { display: flex; flex-direction: column; gap: 10px; }
+        .mt-4 button { width: 100%; margin: 0 !important; }
+        .signature-block { flex-direction: column; gap: 15px; }
+        h1 { font-size: 1.2rem !important; }
+        .modal-content-rebar { padding: 12px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rebar-card">
+    <div id="ajaxMessage"></div>
+    <div class="logo-selector">
+        <span style="font-weight:600;">Логотип:</span>
+        <label><input type="radio" name="logoChoice" value="PSK" checked> ПСК</label>
+        <label><input type="radio" name="logoChoice" value="K33"> К33</label>
+    </div>
+
+    <h1 class="text-center mb-3" style="font-size:1.5rem;">ПРОТОКОЛ № <span id="protocolNumber">--/--</span> МЕХАНИЧЕСКИХ ИСПЫТАНИЙ АРМАТУРНОЙ СТАЛИ</h1>
+    <div class="text-right mb-3"><label>Дата составления: <input type="date" id="compositionDate" class="form-control-sm"></label></div>
+
+    <div class="section-title">1. СВЕДЕНИЯ ОБ ОБРАЗЦАХ</div>
+    <div class="flex-row">
+        <div class="flex-item"><label>Класс стали:</label><select id="steelClass" class="form-control"><option value="">--выберите--</option><option value="А240">А240</option><option value="А400">А400</option><option value="А500С">А500С</option></select></div>
+        <div class="flex-item"><label>Диаметр, мм:</label><select id="diameterSelect" class="form-control"><option value="">--выберите--</option><option value="8">8</option><option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="22">22</option><option value="25">25</option><option value="28">28</option><option value="32">32</option></select></div>
+        <div class="flex-item"><label>Номер плавки:</label><input type="text" id="heatNumber" class="form-control"></div>
+        <div class="flex-item"><label>Объём партии:</label><input type="text" id="batchVolume" class="form-control"></div>
+        <div class="flex-item"><label>Дата испытания:</label><input type="date" id="testDate" class="form-control"></div>
+        <div class="flex-item"><label>НД на продукцию:</label><select id="ndSelect" class="form-control"><option value="ГОСТ 5781-82">ГОСТ 5781-82</option><option value="ГОСТ 34028-2016" selected>ГОСТ 34028-2016</option></select></div>
+    </div>
+
+    <div class="section-title">2. СРЕДСТВА ИЗМЕРЕНИЙ И ОБОРУДОВАНИЕ</div>
+    <div class="table-wrapper">
+        <table class="table table-bordered rebar-table">
+            <thead><tr><th>Наименование</th><th>Тип/Модель</th><th>Заводской №</th><th>Дата поверки</th><th>Свидетельство №</th></tr></thead>
+            <tbody>
+                <tr><td>Разрывная машина</td><td><input type="text" id="machineType" class="form-control"></td><td><input type="text" id="machineSN" class="form-control"></td><td><input type="date" id="machineDate" class="form-control"></td><td><input type="text" id="machineCert" class="form-control"></td></tr>
+                <tr><td>Штангенциркуль</td><td><input type="text" id="caliperType" class="form-control"></td><td><input type="text" id="caliperSN" class="form-control"></td><td><input type="date" id="caliperDate" class="form-control"></td><td><input type="text" id="caliperCert" class="form-control"></td></tr>
+                <tr><td>Линейка</td><td><input type="text" id="rulerType" class="form-control"></td><td><input type="text" id="rulerSN" class="form-control"></td><td><input type="date" id="rulerDate" class="form-control"></td><td><input type="text" id="rulerCert" class="form-control"></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-title">3. РЕЗУЛЬТАТЫ ИСПЫТАНИЙ</div>
+    <div class="table-wrapper">
+        <table class="table table-bordered rebar-table" id="resultsTable">
+            <thead><tr><th>№</th><th>F0, мм²</th><th>P, кН</th><th>σв, Н/мм²</th><th>σт, Н/мм²</th><th>Характер разрушения</th><th>Lк, мм</th><th>δ, %</th></tr></thead>
+            <tbody id="resultsBody">
+                <tr><td>1</td><td><input type="text" class="area-input form-control"></td><td><input type="text" class="form-control"></td><td><input type="text" class="form-control"></td><td><input type="text" class="form-control"></td><td><select class="form-control"><option value="вязкое">вязкое</option><option value="хрупкое">хрупкое</option></select></td><td><input type="text" class="form-control"></td><td><input type="text" class="form-control"></td></tr>
+                <tr><td>2</td><td><input type="text" class="area-input form-control"></td><td><input type="text" class="form-control"></td><td><input type="text" class="form-control"></td><td><input type="text" class="form-control"></td><td><select class="form-control"><option value="вязкое">вязкое</option><option value="хрупкое">хрупкое</option></select></td><td><input type="text" class="form-control"></td><td><input type="text" class="form-control"></td></tr>
+                <tr><td>3</td><td><input type="text" class="area-input form-control"></td><td><input type="text" class="form-control"></td><td><input type="text" class="form-control"></td><td><input type="text" class="form-control"></td><td><select class="form-control"><option value="вязкое">вязкое</option><option value="хрупкое">хрупкое</option></select></td><td><input type="text" class="form-control"></td><td><input type="text" class="form-control"></td></tr>
+            </tbody>
+        </table>
+    </div>
+    <button type="button" id="addRowBtn" class="btn btn-secondary btn-sm mb-3">➕ Добавить строку</button>
+
+    <div class="section-title">4. ЗАКЛЮЧЕНИЕ</div>
+    <div class="mb-2">
+        <label class="mr-3"><input type="radio" name="conclusion" value="accepted"> СООТВЕТСТВУЮТ</label>
+        <label><input type="radio" name="conclusion" value="rejected"> НЕ СООТВЕТСТВУЮТ</label>
+    </div>
+    <div class="form-group"><label>требованиям НД:</label> <input type="text" id="ndRequirement" readonly class="form-control" style="width:300px;"></div>
+
+    <div class="section-title">5. ПОДПИСИ</div>
+    <div class="signature-block">
+        <div class="signature-item"><label>Испытание провёл:</label><input type="text" placeholder="ФИО" id="testerName" class="form-control"><label>Подпись:</label><input type="text" placeholder="_______" id="testerSign" class="form-control"></div>
+        <div class="signature-item"><label>Начальник лаборатории:</label><input type="text" value="Аляева А.Р." id="labChiefName" class="form-control"><label>Подпись:</label><input type="text" placeholder="_______" id="labChiefSign" class="form-control"></div>
+    </div>
+    <div class="mt-3"><label>М.П.:</label> <input type="text" placeholder="место для печати" id="stampPlace" class="form-control" style="width:300px;"></div>
+
+    <div class="mt-4">
+        <button type="button" id="saveBtn" class="btn btn-success mr-2">💾 Сохранить в БД</button>
+        <button type="button" id="generateProtocolBtn" class="btn btn-primary">📋 Сформировать протокол</button>
+        {% if test %}
+        <a href="{{ url_for('protocols.rebar_list') }}" class="btn btn-secondary">← К списку</a>
+        {% endif %}
+    </div>
+</div>
+
+<div id="protocolModal" class="modal-rebar">
+    <div class="modal-content-rebar">
+        <span class="close-btn-rebar" id="closeModalBtn">&times;</span>
+        <div id="protocolContent"></div>
+        <div class="text-right mt-3"><button id="printProtocolBtn" class="btn btn-secondary">🖨️ Печать</button></div>
+    </div>
+</div>
+
+<script>
+    const strengthReqs = {
+        'А240': { tensile: 360, yield: 240, elongation: 9 },
+        'А400': { tensile: 590, yield: 390, elongation: 16 },
+        'А500С': { tensile: 600, yield: 500, elongation: 14 }
+    };
+    const areaByDiameter = {
+        '8':50.3,'10':78.5,'12':113.1,'14':153.9,'16':201.1,
+        '18':254.5,'20':314.2,'22':380.1,'25':490.9,'28':615.8,'32':804.3
+    };
+
+    const steelClassSel = document.getElementById('steelClass');
+    const diameterSel = document.getElementById('diameterSelect');
+    const resultsBody = document.getElementById('resultsBody');
+    const addRowBtn = document.getElementById('addRowBtn');
+    const compositionDate = document.getElementById('compositionDate');
+    const testDate = document.getElementById('testDate');
+    const ndSelect = document.getElementById('ndSelect');
+    const ndRequirement = document.getElementById('ndRequirement');
+
+    ndSelect.addEventListener('change', () => ndRequirement.value = ndSelect.value);
+    ndRequirement.value = ndSelect.value;
+
+    function highlightNonCompliantCells() {
+        const steelClass = steelClassSel.value;
+        const req = strengthReqs[steelClass];
+        document.querySelectorAll('.noncompliant').forEach(cell => cell.classList.remove('noncompliant'));
+        if (!req) return;
+        for (let row of resultsBody.rows) {
+            const tensInput = row.cells[3]?.querySelector('input');
+            const yieldInput = row.cells[4]?.querySelector('input');
+            const elongInput = row.cells[7]?.querySelector('input');
+            if (tensInput && !isNaN(parseFloat(tensInput.value)) && parseFloat(tensInput.value) < req.tensile) tensInput.classList.add('noncompliant');
+            if (yieldInput && !isNaN(parseFloat(yieldInput.value)) && parseFloat(yieldInput.value) < req.yield) yieldInput.classList.add('noncompliant');
+            if (elongInput && !isNaN(parseFloat(elongInput.value)) && parseFloat(elongInput.value) < req.elongation) elongInput.classList.add('noncompliant');
+        }
+    }
+
+    function recalcElongation(row) {
+        const lkInput = row.cells[6]?.querySelector('input');
+        const deltaInput = row.cells[7]?.querySelector('input');
+        if (!lkInput || !deltaInput) return;
+        const lk = parseFloat(lkInput.value);
+        if (!isNaN(lk)) deltaInput.value = ((lk - 100) / 100 * 100).toFixed(1);
+    }
+
+    function attachRowListeners(row) {
+        const areaInp = row.cells[1]?.querySelector('input');
+        const loadInp = row.cells[2]?.querySelector('input');
+        const tensInp = row.cells[3]?.querySelector('input');
+        if (areaInp && loadInp && tensInp) {
+            const calcTens = () => {
+                const area = parseFloat(areaInp.value);
+                const load = parseFloat(loadInp.value);
+                if (!isNaN(area) && !isNaN(load) && area > 0) tensInp.value = (load * 1000 / area).toFixed(1);
+                highlightNonCompliantCells();
+            };
+            areaInp.addEventListener('input', calcTens);
+            loadInp.addEventListener('input', calcTens);
+        }
+        const yieldInp = row.cells[4]?.querySelector('input');
+        if (yieldInp) yieldInp.addEventListener('input', highlightNonCompliantCells);
+        const lkInp = row.cells[6]?.querySelector('input');
+        if (lkInp) lkInp.addEventListener('input', () => { recalcElongation(row); highlightNonCompliantCells(); });
+        const deltaInp = row.cells[7]?.querySelector('input');
+        if (deltaInp) deltaInp.addEventListener('input', highlightNonCompliantCells);
+    }
+
+    function attachAllRows() {
+        for (let row of resultsBody.rows) attachRowListeners(row);
+    }
+
+    addRowBtn.addEventListener('click', () => {
+        const newRow = resultsBody.insertRow();
+        const idx = resultsBody.rows.length;
+        newRow.innerHTML = `
+            <td>${idx}</td>
+            <td><input type="text" class="area-input form-control"></td>
+            <td><input type="text" class="form-control"></td>
+            <td><input type="text" class="form-control"></td>
+            <td><input type="text" class="form-control"></td>
+            <td><select class="form-control"><option value="вязкое">вязкое</option><option value="хрупкое">хрупкое</option></select></td>
+            <td><input type="text" class="form-control"></td>
+            <td><input type="text" class="form-control"></td>
+        `;
+        attachRowListeners(newRow);
+        const diam = diameterSel.value;
+        if (diam && areaByDiameter[diam]) newRow.cells[1].querySelector('input').value = areaByDiameter[diam];
+    });
+
+    steelClassSel.addEventListener('change', highlightNonCompliantCells);
+    diameterSel.addEventListener('change', () => {
+        const diam = diameterSel.value;
+        const area = areaByDiameter[diam] || '';
+        for (let row of resultsBody.rows) {
+            const areaInput = row.cells[1]?.querySelector('input');
+            if (areaInput) areaInput.value = area;
+        }
+        highlightNonCompliantCells();
+    });
+
+    function setTodayDates() {
+        const today = new Date().toISOString().split('T')[0];
+        compositionDate.value = today;
+        testDate.value = today;
+    }
+    function updateProtocolNumber() {
+        const date = compositionDate.value;
+        if (!date) return;
+        const num = date.replace(/-/g, '') + '/' + Math.floor(Math.random() * 1000);
+        document.getElementById('protocolNumber').innerText = num;
+    }
+    compositionDate.addEventListener('change', updateProtocolNumber);
+    setTodayDates();
+    updateProtocolNumber();
+
+    function getLogoHtml() {
+        const selected = document.querySelector('input[name="logoChoice"]:checked').value;
+        return `<div style="text-align:center;margin-bottom:15px;"><img src="/static/${selected}.png" onerror="this.style.display='none'" style="max-width:100%; height:auto;"></div>`;
+    }
+    function saveLogoChoice() {
+        const selected = document.querySelector('input[name="logoChoice"]:checked')?.value;
+        if (selected) localStorage.setItem('rebarLogo', selected);
+    }
+    function restoreLogoChoice() {
+        const saved = localStorage.getItem('rebarLogo');
+        if (saved) {
+            const radio = document.querySelector(`input[name="logoChoice"][value="${saved}"]`);
+            if (radio) radio.checked = true;
+        }
+    }
+    document.querySelectorAll('input[name="logoChoice"]').forEach(radio => radio.addEventListener('change', saveLogoChoice));
+    restoreLogoChoice();
+
+    function collectFormData() {
+        const rows = [];
+        for (let row of resultsBody.rows) {
+            rows.push({
+                area: row.cells[1]?.querySelector('input')?.value || '',
+                load: row.cells[2]?.querySelector('input')?.value || '',
+                tensile: row.cells[3]?.querySelector('input')?.value || '',
+                yield_strength: row.cells[4]?.querySelector('input')?.value || '',
+                fracture: row.cells[5]?.querySelector('select')?.value || '',
+                lk: row.cells[6]?.querySelector('input')?.value || '',
+                elongation: row.cells[7]?.querySelector('input')?.value || ''
+            });
+        }
+        const conclusionRadio = document.querySelector('input[name="conclusion"]:checked');
+        const conclusion = conclusionRadio ? conclusionRadio.value : '';
+        
+        return {
+            protocol_number: document.getElementById('protocolNumber').innerText,
+            test_date: testDate.value,
+            steel_class: steelClassSel.value,
+            diameter: diameterSel.value,
+            batch_number: document.getElementById('heatNumber').value,
+            manufacturer: document.getElementById('batchVolume').value,
+            yield_strength: rows.length > 0 ? rows[0].yield_strength : null,
+            tensile_strength: rows.length > 0 ? rows[0].tensile : null,
+            elongation: rows.length > 0 ? rows[0].elongation : null,
+            conclusion: conclusion,
+            notes: `Плавка: ${document.getElementById('heatNumber').value}, Объём партии: ${document.getElementById('batchVolume').value}`
+        };
+    }
+
+    function saveRebarToDatabase(isSilent) {
+        const data = collectFormData();
+        const conclusion = data.conclusion;
+        if (!conclusion && !isSilent) {
+            alert('Выберите заключение (соответствует/не соответствует)');
+            return Promise.reject('no conclusion');
+        }
+        return fetch(window.location.href, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (!isSilent) {
+                    const msgDiv = document.getElementById('ajaxMessage');
+                    msgDiv.style.display = 'block';
+                    msgDiv.innerHTML = '✅ ' + data.message;
+                    setTimeout(() => msgDiv.style.display = 'none', 3000);
+                }
+                return true;
+            } else {
+                throw new Error(data.message || 'Ошибка сохранения');
+            }
+        })
+        .catch(error => {
+            if (!isSilent) alert('Ошибка: ' + error.message);
+            console.error(error);
+            return false;
+        });
+    }
+
+    function buildProtocolHTML() {
+        const logoHtml = getLogoHtml();
+        const conclusionRadio = document.querySelector('input[name="conclusion"]:checked');
+        const conclusion = conclusionRadio ? (conclusionRadio.value === 'accepted' ? 'СООТВЕТСТВУЮТ' : 'НЕ СООТВЕТСТВУЮТ') : 'не указано';
+        let html = logoHtml + `
+            <h2 style="text-align:center;">Протокол испытаний № ${document.getElementById('protocolNumber').innerText}</h2>
+            <h2 style="text-align:center;">Механических испытаний арматурной стали</h2>
+            <p style="text-align:right;">Дата составления: ${compositionDate.value}</p>
+            <h3>1. СВЕДЕНИЯ ОБ ОБРАЗЦАХ</h3>
+            <p>Класс стали: ${steelClassSel.value}<br>
+            Диаметр: ${diameterSel.value} мм<br>
+            Плавка: ${document.getElementById('heatNumber').value}<br>
+            Партия: ${document.getElementById('batchVolume').value}<br>
+            Дата испытания: ${testDate.value}<br>
+            НД на продукцию: ${ndSelect.value}</p>
+            <h3>2. РЕЗУЛЬТАТЫ ИСПЫТАНИЙ</h3>
+            <table border="1" style="width:100%; border-collapse: collapse;">
+                <thead><tr><th>№</th><th>F0, мм²</th><th>P, кН</th><th>σв, Н/мм²</th><th>σт, Н/мм²</th><th>Характер разрушения</th><th>Lк, мм</th><th>δ, %</th></tr></thead>
+                <tbody>`;
+        for (let row of resultsBody.rows) {
+            html += `<tr>
+                <td>${row.cells[0].innerText}</td>
+                <td>${row.cells[1]?.querySelector('input')?.value || ''}</td>
+                <td>${row.cells[2]?.querySelector('input')?.value || ''}</td>
+                <td>${row.cells[3]?.querySelector('input')?.value || ''}</td>
+                <td>${row.cells[4]?.querySelector('input')?.value || ''}</td>
+                <td>${row.cells[5]?.querySelector('select')?.value || ''}</td>
+                <td>${row.cells[6]?.querySelector('input')?.value || ''}</td>
+                <td>${row.cells[7]?.querySelector('input')?.value || ''}</td>
+            </tr>`;
+        }
+        html += `</tbody>
+            </table>
+            <h3>3. ЗАКЛЮЧЕНИЕ</h3>
+            <p>Испытанные образцы <strong>${conclusion}</strong> требованиям ${ndRequirement.value}</p>
+            <h3>4. ПОДПИСИ</h3>
+            <p><strong>Испытание провёл:</strong> ${document.getElementById('testerName').value} _________ (${document.getElementById('testerSign').value})<br>
+            <strong>Начальник лаборатории:</strong> ${document.getElementById('labChiefName').value} _________ (${document.getElementById('labChiefSign').value})</p>
+            <p><strong>М.П.:</strong> ${document.getElementById('stampPlace').value}</p>
+            <p style="font-size:8pt; color:#666;">* Форма соответствует ГОСТ 12004-81, ГОСТ Р 57997-2017.</p>`;
+        return html;
+    }
+
+    const modal = document.getElementById('protocolModal');
+    const protocolContent = document.getElementById('protocolContent');
+    function showProtocol() {
+        saveRebarToDatabase(true).finally(() => {
+            protocolContent.innerHTML = buildProtocolHTML();
+            modal.classList.add('show');
+        });
+    }
+    function closeModal() { modal.classList.remove('show'); }
+    document.getElementById('generateProtocolBtn')?.addEventListener('click', showProtocol);
+    document.getElementById('saveBtn')?.addEventListener('click', () => saveRebarToDatabase(false));
+    document.getElementById('closeModalBtn')?.addEventListener('click', closeModal);
+    document.getElementById('printProtocolBtn')?.addEventListener('click', () => window.print());
+    window.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    attachAllRows();
+    highlightNonCompliantCells();
+    
+    {% if test %}
+    // Загрузка данных для редактирования
+    steelClassSel.value = "{{ test.steel_class }}";
+    diameterSel.value = "{{ test.diameter }}";
+    document.getElementById('heatNumber').value = "{{ test.batch_number or '' }}";
+    document.getElementById('batchVolume').value = "{{ test.manufacturer or '' }}";
+    testDate.value = "{{ test.test_date }}";
+    compositionDate.value = "{{ test.test_date }}";
+    document.getElementById('protocolNumber').innerText = "{{ test.protocol_number }}";
+    if ("{{ test.yield_strength }}") {
+        const rows = resultsBody.rows;
+        if (rows[0]) {
+            rows[0].cells[4].querySelector('input').value = "{{ test.yield_strength }}";
+            rows[0].cells[3].querySelector('input').value = "{{ test.tensile_strength }}";
+            rows[0].cells[7].querySelector('input').value = "{{ test.elongation }}";
+        }
+    }
+    if ("{{ test.conclusion }}" === 'accepted') {
+        document.querySelector('input[name="conclusion"][value="accepted"]').checked = true;
+    } else if ("{{ test.conclusion }}" === 'rejected') {
+        document.querySelector('input[name="conclusion"][value="rejected"]').checked = true;
+    }
+    updateProtocolNumber();
+    highlightNonCompliantCells();
+    {% endif %}
+</script>
+{% endblock %}

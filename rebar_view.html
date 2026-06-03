@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Протокол испытаний арматуры №{{ test.protocol_number }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    .protocol-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    h1, h2 { text-align: center; }
+    h1 { font-size: 1.5rem; margin-top: 0; }
+    h2 { font-size: 1.2rem; margin: 20px 0 10px; }
+    .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 15px 0; }
+    table { width: 100%; border-collapse: collapse; min-width: 500px; }
+    th, td { border: 1px solid #999; padding: 8px; text-align: left; }
+    th { background: #e1ecf4; }
+    .signature-block { display: flex; justify-content: space-between; margin-top: 30px; flex-wrap: wrap; gap: 20px; }
+    .btn, .back-link { background: #1e3c72; color: white; border: none; padding: 8px 16px; border-radius: 40px; cursor: pointer; margin-right: 10px; font-size: 14px; text-decoration: none; display: inline-block; }
+    .btn-secondary, .back-link { background: #6c757d; }
+    .logo-img { max-width: 100%; height: auto; display: block; margin: 0 auto 15px auto; }
+    .conclusion-accepted { color: green; font-weight: bold; }
+    .conclusion-rejected { color: red; font-weight: bold; }
+    @media print { .no-print { display: none; } body { margin: 0; background: white; } .protocol-container { box-shadow: none; padding: 0; } }
+    @media (max-width: 767.98px) {
+        body { padding: 8px; }
+        .protocol-container { padding: 12px; }
+        h1 { font-size: 1.2rem; }
+        h2 { font-size: 1rem; }
+        th, td { font-size: 0.75rem; padding: 4px; }
+        .signature-block { flex-direction: column; gap: 10px; }
+        .btn, .back-link { font-size: 12px; padding: 6px 12px; width: 100%; text-align: center; margin: 0 0 8px 0; }
+        .no-print { display: flex; flex-direction: column; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="protocol-container">
+    <div class="no-print" style="margin-bottom:15px; display: flex; flex-wrap: wrap; gap: 8px;">
+        <a href="{{ url_for('protocols.rebar_list') }}" class="back-link">← К списку</a>
+        <button class="btn" onclick="window.print()">🖨️ Печать</button>
+        <a href="{{ url_for('protocols.rebar_edit', doc_id=test.id) }}" class="btn">✏️ Редактировать</a>
+        <form method="POST" action="{{ url_for('protocols.rebar_delete', doc_id=test.id) }}" style="display:inline;" onsubmit="return confirm('Удалить протокол?')">
+            <button type="submit" class="btn" style="background: #dc3545;">🗑️ Удалить</button>
+        </form>
+    </div>
+
+    <div style="text-align:center; margin-bottom:15px;">
+        <img src="/static/PSK.png" alt="Логотип" class="logo-img" style="width: 100%;" onerror="this.style.display='none'">
+    </div>
+    <h1>ПРОТОКОЛ № {{ test.protocol_number }} МЕХАНИЧЕСКИХ ИСПЫТАНИЙ АРМАТУРНОЙ СТАЛИ</h1>
+    <p style="text-align:right;">Дата испытания: {{ test.test_date.strftime('%d.%m.%Y') if test.test_date else '—' }}</p>
+
+    <h2>1. СВЕДЕНИЯ ОБ ОБРАЗЦАХ</h2>
+    <p><strong>Класс стали:</strong> {{ test.steel_class }}<br>
+    <strong>Диаметр:</strong> {{ test.diameter }} мм<br>
+    <strong>Номер партии:</strong> {{ test.batch_number or '—' }}<br>
+    <strong>Изготовитель:</strong> {{ test.manufacturer or '—' }}<br>
+    <strong>НД на продукцию:</strong> {{ test.gost_standard }}</p>
+
+    <h2>2. РЕЗУЛЬТАТЫ ИСПЫТАНИЙ</h2>
+    <div class="table-wrapper">
+        <table class="table table-bordered">
+            <thead><tr><th>Показатель</th><th>Фактическое значение</th><th>Требование НД</th><th>Соответствие</th></tr></thead>
+            <tbody>
+                <tr><td>Предел текучести σт, МПа</td>
+                    <td>{{ test.yield_strength or '—' }}</td>
+                    <td>≥ {{ test.get_requirements().get('yield', '—') }}</td>
+                    <td>{% if test.yield_strength and test.get_requirements().get('yield') and test.yield_strength >= test.get_requirements().get('yield') %}✅{% else %}❌{% endif %}</td>
+                </tr>
+                <tr><td>Временное сопротивление σв, МПа</td>
+                    <td>{{ test.tensile_strength or '—' }}</td>
+                    <td>≥ {{ test.get_requirements().get('tensile', '—') }}</td>
+                    <td>{% if test.tensile_strength and test.get_requirements().get('tensile') and test.tensile_strength >= test.get_requirements().get('tensile') %}✅{% else %}❌{% endif %}</td>
+                </tr>
+                <tr><td>Относительное удлинение δ, %</td>
+                    <td>{{ test.elongation or '—' }}</td>
+                    <td>≥ {{ test.get_requirements().get('elongation', '—') }}</td>
+                    <td>{% if test.elongation and test.get_requirements().get('elongation') and test.elongation >= test.get_requirements().get('elongation') %}✅{% else %}❌{% endif %}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2>3. ЗАКЛЮЧЕНИЕ</h2>
+    <p>Испытанные образцы 
+        <span class="{% if test.conclusion == 'accepted' %}conclusion-accepted{% else %}conclusion-rejected{% endif %}">
+            {{ 'СООТВЕТСТВУЮТ' if test.conclusion == 'accepted' else 'НЕ СООТВЕТСТВУЮТ' }}
+        </span> 
+        требованиям {{ test.gost_standard }}
+    </p>
+
+    {% if test.notes %}
+    <h2>4. ПРИМЕЧАНИЯ</h2>
+    <p>{{ test.notes }}</p>
+    {% endif %}
+
+    <h2>5. ПОДПИСИ</h2>
+    <div class="signature-block">
+        <div>Испытание провёл: _________________</div>
+        <div>Начальник лаборатории: _________________</div>
+    </div>
+    <p style="font-size:8pt;">* Форма соответствует ГОСТ 12004-81, ГОСТ Р 57997-2017.</p>
+    <p style="font-size:8pt;">Дата создания: {{ test.created_at.strftime('%d.%m.%Y %H:%M') if test.created_at else '—' }}</p>
+</div>
+{% endblock %}

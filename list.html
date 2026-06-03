@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Список паспортов{% endblock %}
+{% block content %}
+<h2>Все паспорта качества</h2>
+<a href="/quality/passport" class="btn btn-success mb-3">Создать новый</a>
+<table class="table">
+    <thead>
+        <tr><th>ID</th><th>Номер</th><th>Изделие</th><th>Дата</th><th>Действие</th></tr>
+    </thead>
+    <tbody>
+        {% for p in passports %}
+        <tr>
+            <td>{{ p.id }}</td><td>{{ p.doc_number }}</td><td>{{ p.product_name }}</td><td>{{ p.doc_date }}</td>
+            <td><a href="/quality/view_passport/{{ p.id }}">Просмотр</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

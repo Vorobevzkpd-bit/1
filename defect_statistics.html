@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Статистика дефектов{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4">Статистика дефектов</h2>
+    
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">📊 Статистика за текущий месяц</h5>
+                </div>
+                <div class="card-body" id="statsContainer">
+                    <p class="text-muted">Загрузка...</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">🥧 Распределение дефектов</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="defectsChart" style="height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    // Загрузка статистики
+    fetch('/api/defect_stats_month')
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('statsContainer');
+            if (!data || data.length === 0) {
+                container.innerHTML = '<p class="text-muted">Нет данных за текущий месяц</p>';
+                return;
+            }
+            let html = '<table class="table table-bordered"> <thead> <tr><th>Дефект</th><th>Доля, %</th></tr> </thead> <tbody>';
+            data.forEach(d => {
+                html += `<tr><td>${d.name}</td><td>${d.percent}%</td></tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        });
+    
+    // Круговая диаграмма
+    fetch('/api/defects_distribution')
+        .then(r => r.json())
+        .then(data => {
+            const ctx = document.getElementById('defectsChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        data: data.counts,
+                        backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: true }
+            });
+        });
+</script>
+{% endblock %}

@@ -1,0 +1,40 @@
+from app.extensions import db
+from app.modules.finished_goods.services import FinishedGoodsService
+
+# Найти все приёмочные акты с receipt_order_id
+from app.modules.control.models import DefectReport
+reports = DefectReport.query.all()
+for r in reports:
+    if r.receipt_order_id:
+        print(f"Удаляем приход {r.receipt_order_id} для акта {r.id}")
+        FinishedGoodsService.delete_receipt_order(r.receipt_order_id)
+    db.session.delete(r)
+
+# Удалить операционные акты
+from app.modules.control.models import OperationalControl
+for o in OperationalControl.query.all():
+    db.session.delete(o)
+
+# Удалить брак
+from app.modules.control.models import RejectWarehouse
+for rj in RejectWarehouse.query.all():
+    db.session.delete(rj)
+
+# Удалить оставшиеся партии и движения
+from app.modules.finished_goods.models import StockBatch, StockMovement, ReceiptOrder, ExpenseOrder
+StockMovement.query.delete()
+StockBatch.query.delete()
+ReceiptOrder.query.delete()
+ExpenseOrder.query.delete()
+
+# Удалить производственные данные
+from app.modules.production.models import ProductionScheduleItem, ProductionTask
+ProductionScheduleItem.query.delete()
+ProductionTask.query.delete()
+
+# Удалить журнал
+from app.modules.documents.models import DocumentLog
+DocumentLog.query.delete()
+
+db.session.commit()
+print("✅ Все данные очищены")

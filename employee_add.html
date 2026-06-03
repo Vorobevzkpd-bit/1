@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Добавить сотрудника – Склад СИЗ{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <a href="{{ url_for('warehouse_ppe.employees_list') }}" class="btn btn-outline-secondary mb-3">← К списку сотрудников</a>
+
+    <h2>➕ Добавить сотрудника</h2>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('warehouse_ppe.employee_add') }}">
+                <div class="form-group">
+                    <label for="full_name">ФИО <span class="text-danger">*</span></label>
+                    <input type="text" name="full_name" id="full_name" class="form-control" placeholder="Иванов Иван Иванович" required>
+                </div>
+                <div class="form-group">
+                    <label for="position">Должность</label>
+                    <select name="position" id="position" class="form-control">
+                        <option value="">— выберите —</option>
+                        {% for pos in positions %}
+                        <option value="{{ pos }}">{{ pos }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="department">Подразделение</label>
+                    <input type="text" name="department" id="department" class="form-control" placeholder="Например: Цех №1">
+                </div>
+                <div class="form-group">
+                    <label for="badge_number">Номер карты СКУД</label>
+                    <input type="text" name="badge_number" id="badge_number" class="form-control" placeholder="Отсканируйте карту или введите номер">
+                </div>
+                <div class="form-group">
+                    <label for="personnel_number">Табельный номер</label>
+                    <input type="text" name="personnel_number" id="personnel_number" class="form-control" placeholder="При необходимости">
+                </div>
+                <div class="form-group">
+                    <label for="hire_date">Дата приёма на работу</label>
+                    <input type="date" name="hire_date" id="hire_date" class="form-control">
+                </div>
+                <button type="submit" class="btn btn-success">💾 Сохранить</button>
+                <a href="{{ url_for('warehouse_ppe.employees_list') }}" class="btn btn-secondary ml-2">Отмена</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

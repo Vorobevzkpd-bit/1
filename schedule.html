@@ -1,0 +1,473 @@
+{% extends "base.html" %}
+
+{% block title %}График формовки - {{ month_name }} {{ year }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    .schedule-container {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        padding: 0 0 1rem 0;
+        overflow-x: auto;
+    }
+    .schedule-table {
+        min-width: 800px;
+        font-size: 0.8rem;
+        margin-bottom: 0;
+    }
+    .schedule-table th, .schedule-table td {
+        vertical-align: middle;
+        text-align: center;
+        border-color: #dee2e6;
+        padding: 0.5rem 0.2rem;
+    }
+    .schedule-table th {
+        background-color: #e9ecef;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    .schedule-table .task-col {
+        background-color: #f8f9fa;
+        font-weight: 500;
+        text-align: left;
+        position: sticky;
+        left: 0;
+        background-color: white;
+        z-index: 1;
+        box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
+        min-width: 220px;
+    }
+    .plan-cell { background-color: #fff3cd; }
+    .fact-cell { background-color: #d4edda; }
+    .carry-cell { background-color: #f8d7da; }
+    .total-row {
+        background-color: #e2e3e5;
+        font-weight: 700;
+        border-top: 2px solid #adb5bd;
+    }
+    .sticky-header th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    .legend {
+        padding: 10px 15px;
+        background: #fef9e6;
+        border-radius: 30px;
+        display: inline-flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+    .legend span {
+        font-size: 0.8rem;
+        margin-left: 6px;
+    }
+    .nav-buttons {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .month-nav {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    .sync-btn {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+    }
+    .sync-btn:hover {
+        background: #5a6268;
+    }
+    .planned-input, .actual-input, .carry-input {
+        width: 50px;
+        text-align: center;
+        border: none;
+        background: transparent;
+        padding: 2px;
+        font-size: 0.75rem;
+    }
+    .planned-input:focus, .actual-input:focus, .carry-input:focus {
+        outline: none;
+        background: rgba(0,0,0,0.05);
+        border-radius: 4px;
+    }
+    .plan-cell .planned-input { font-weight: 600; }
+    .fact-cell .actual-input { font-weight: 600; }
+    .carry-cell .carry-input { font-weight: 600; color: #c62828; }
+
+    /* Стили для неактивных полей */
+    .planned-input.disabled, .actual-input.disabled, .carry-input.disabled {
+        background-color: #e9ecef !important;
+        color: #6c757d !important;
+        cursor: not-allowed !important;
+        opacity: 0.7;
+    }
+
+    .day-group-hidden {
+        display: none !important;
+    }
+
+    .day-collapse-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 0.7rem;
+        color: #6c757d;
+        margin-left: 5px;
+    }
+    .day-collapse-btn:hover {
+        color: #1e3a5f;
+    }
+
+    @media (max-width: 768px) {
+        .schedule-table {
+            font-size: 0.65rem;
+        }
+        .planned-input, .actual-input, .carry-input {
+            width: 40px;
+            font-size: 0.65rem;
+            padding: 1px;
+        }
+        .schedule-table .task-col {
+            min-width: 180px;
+        }
+        .schedule-table th, .schedule-table td {
+            padding: 0.3rem 0.1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-xxl">
+    <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+        <div class="legend">
+            <div><i class="fas fa-square text-warning"></i><span> План</span></div>
+            <div><i class="fas fa-square text-success"></i><span> Факт</span></div>
+            <div><i class="fas fa-square text-danger"></i><span> Перенос</span></div>
+            <div><i class="fas fa-arrows-alt-h"></i><span> Горизонтальная прокрутка →</span></div>
+            <div><i class="fas fa-compress-alt"></i><span> Клик по дню → свернуть</span></div>
+        </div>
+        <div>
+            <button class="sync-btn" onclick="syncTasks()">
+                <i class="fas fa-sync-alt"></i> Синхронизировать задачи
+            </button>
+        </div>
+    </div>
+
+    <div class="nav-buttons">
+        <div class="month-nav">
+            <a href="{{ url_for('production.schedule', year=prev_year, month=prev_month) }}" class="btn btn-outline-secondary btn-sm">
+                ← {{ prev_month }}
+            </a>
+            <h4 class="mb-0">{{ month_name }} {{ year }}</h4>
+            <a href="{{ url_for('production.schedule', year=next_year, month=next_month) }}" class="btn btn-outline-secondary btn-sm">
+                {{ next_month }} →
+            </a>
+        </div>
+        <div>
+            <button class="btn btn-outline-secondary btn-sm" onclick="expandAllDays()">
+                <i class="fas fa-expand-alt"></i> Развернуть все дни
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="collapseAllDays()">
+                <i class="fas fa-compress-alt"></i> Свернуть все дни
+            </button>
+        </div>
+    </div>
+
+    <div class="schedule-container">
+        <div class="table-responsive-custom">
+            <table class="table table-bordered schedule-table" id="scheduleTable">
+                <thead class="sticky-header">
+                    <tr id="headerRow">
+                        <th rowspan="2" style="min-width: 220px;">Заказ / Изделие</th>
+                        {% for day in days %}
+                        <th colspan="3" class="day-group-{{ day }}" data-day="{{ day }}">
+                            {{ day }}<br><small>{{ month_name[:3] }}</small>
+                            <button class="day-collapse-btn" onclick="toggleDay({{ day }})" title="Свернуть/развернуть день">
+                                <i class="fas fa-minus-circle" id="icon-day-{{ day }}"></i>
+                            </button>
+                        </th>
+                        {% endfor %}
+                        <th rowspan="2" style="background:#e2e3e5; min-width: 90px;">Всего план (м³)</th>
+                        <th rowspan="2" style="background:#e2e3e5; min-width: 90px;">Всего факт (м³)</th>
+                        <th rowspan="2" style="background:#e2e3e5; min-width: 80px;">Выполнение (%)</th>
+                    </tr>
+                    <tr id="subheaderRow">
+                        {% for day in days %}
+                        <th class="plan-th day-group-{{ day }}">План</th>
+                        <th class="fact-th day-group-{{ day }}">Факт</th>
+                        <th class="carry-th day-group-{{ day }}">Перенос</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody id="scheduleBody">
+                    {% for task_key, data in schedule_data.items() %}
+                    {% set task = data.task %}
+                    {% set volume = task.invoice_item.volume_m3 if task.invoice_item and task.invoice_item.volume_m3 else 0 %}
+                    {% set ns = namespace(total_planned_m3=0.0, total_actual_m3=0.0) %}
+                    <tr class="task-row" data-task-id="{{ task.id }}">
+                        <td class="task-col">
+                            <strong>{{ task.invoice_item.product_name if task.invoice_item else '—' }}</strong><br>
+                            <small>{{ task.invoice_item.drawing if task.invoice_item else '—' }} / {{ task.invoice_item.invoice.customer if task.invoice_item and task.invoice_item.invoice else '—' }}</small><br>
+                            <span class="badge bg-secondary">объём: {{ volume }} м³</span>
+                        </td>
+                        {% for day in days %}
+                        {% set day_data = data.days.get(day, {'planned': 0, 'actual': 0, 'carryover': 0}) %}
+                        {% set planned_pcs = day_data.planned|default(0) %}
+                        {% set actual_pcs = day_data.actual|default(0) %}
+                        {% set carryover_pcs = day_data.carryover|default(0) %}
+                        {% set planned_m3 = planned_pcs * volume %}
+                        {% set actual_m3 = actual_pcs * volume %}
+                        {% set ns.total_planned_m3 = ns.total_planned_m3 + planned_m3 %}
+                        {% set ns.total_actual_m3 = ns.total_actual_m3 + actual_m3 %}
+
+                        {% set can_edit_planned = can_edit(day, 'planned') %}
+                        {% set can_edit_actual = can_edit(day, 'actual') %}
+                        {% set can_edit_carryover = can_edit(day, 'carryover') %}
+
+                        <td class="plan-cell day-group-{{ day }}">
+                            <input type="text" class="planned-input {% if not can_edit_planned %}disabled{% endif %}"
+                                   value="{{ planned_pcs|round(1) if planned_pcs else '0' }}"
+                                   data-task-id="{{ task.id }}" data-day="{{ day }}" data-type="planned"
+                                   {% if not can_edit_planned %}readonly disabled{% endif %}
+                                   onchange="updatePlanned(this)">
+                        </td>
+                        <td class="fact-cell day-group-{{ day }}">
+                            <input type="text" class="actual-input {% if not can_edit_actual %}disabled{% endif %}"
+                                   value="{{ actual_pcs|round(1) if actual_pcs else '0' }}"
+                                   data-task-id="{{ task.id }}" data-day="{{ day }}" data-type="actual"
+                                   {% if not can_edit_actual %}readonly disabled{% endif %}
+                                   onchange="updateActual(this)">
+                        </td>
+                        <td class="carry-cell day-group-{{ day }}">
+                            <input type="text" class="carry-input {% if not can_edit_carryover %}disabled{% endif %}"
+                                   value="{{ carryover_pcs|round(1) if carryover_pcs else '0' }}"
+                                   data-task-id="{{ task.id }}" data-day="{{ day }}" data-type="carryover"
+                                   {% if not can_edit_carryover %}readonly disabled{% endif %}
+                                   onchange="updateCarryover(this)">
+                        </td>
+                        {% endfor %}
+                        <td class="total-row"><strong>{{ "%.2f"|format(ns.total_planned_m3) }}</strong></td>
+                        <td class="total-row"><strong>{{ "%.2f"|format(ns.total_actual_m3) }}</strong></td>
+                        <td class="total-row">
+                            <strong>{{ "%.1f"|format(ns.total_actual_m3 / ns.total_planned_m3 * 100) if ns.total_planned_m3 > 0 else 0 }}%</strong>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr class="no-data">
+                        <td colspan="{{ days|length * 3 + 4 }}" class="text-center text-muted py-5">
+                            Нет производственных задач. Нажмите «Синхронизировать задачи» для загрузки данных из счетов.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="total-row">
+                        <td class="task-col"><strong>ИТОГО по плану/факту (м³)</strong></td>
+                        {% for day in days %}
+                        {% set day_total_planned = totals[day].planned if totals[day] else 0 %}
+                        {% set day_total_actual = totals[day].actual if totals[day] else 0 %}
+                        <td class="plan-cell day-group-{{ day }}">
+                            <strong>{{ "%.2f"|format(day_total_planned) }}</strong>
+                        </td>
+                        <td class="fact-cell day-group-{{ day }}">
+                            <strong>{{ "%.2f"|format(day_total_actual) }}</strong>
+                        </td>
+                        <td class="carry-cell day-group-{{ day }}">
+                            <strong>0.00</strong>
+                        </td>
+                        {% endfor %}
+                        <td class="total-row"><strong>{{ "%.2f"|format(totals.total_planned) }}</strong></td>
+                        <td class="total-row"><strong>{{ "%.2f"|format(totals.total_actual) }}</strong></td>
+                        <td class="total-row">
+                            <strong>{{ "%.1f"|format(totals.total_actual / totals.total_planned * 100) if totals.total_planned > 0 else 0 }}%</strong>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Состояние свёрнутых дней (храним в localStorage)
+    let collapsedDays = {};
+
+    function loadCollapsedState() {
+        const saved = localStorage.getItem('collapsedDays_production');
+        if (saved) {
+            collapsedDays = JSON.parse(saved);
+        }
+    }
+    function saveCollapsedState() {
+        localStorage.setItem('collapsedDays_production', JSON.stringify(collapsedDays));
+    }
+
+    function collapseDay(day) {
+        const dayGroups = document.querySelectorAll(`.day-group-${day}`);
+        const icon = document.getElementById(`icon-day-${day}`);
+        dayGroups.forEach(group => group.classList.add('day-group-hidden'));
+        if (icon) {
+            icon.classList.remove('fa-minus-circle');
+            icon.classList.add('fa-plus-circle');
+        }
+        collapsedDays[day] = true;
+        saveCollapsedState();
+    }
+
+    function expandDay(day) {
+        const dayGroups = document.querySelectorAll(`.day-group-${day}`);
+        const icon = document.getElementById(`icon-day-${day}`);
+        dayGroups.forEach(group => group.classList.remove('day-group-hidden'));
+        if (icon) {
+            icon.classList.remove('fa-plus-circle');
+            icon.classList.add('fa-minus-circle');
+        }
+        collapsedDays[day] = false;
+        saveCollapsedState();
+    }
+
+    function toggleDay(day) {
+        if (collapsedDays[day]) expandDay(day);
+        else collapseDay(day);
+    }
+
+    function expandAllDays() {
+        {% for day in days %}
+        if (collapsedDays[{{ day }}]) expandDay({{ day }});
+        {% endfor %}
+    }
+    function collapseAllDays() {
+        {% for day in days %}
+        if (!collapsedDays[{{ day }}]) collapseDay({{ day }});
+        {% endfor %}
+    }
+
+    function applyCollapsedState() {
+        {% for day in days %}
+        if (collapsedDays[{{ day }}]) collapseDay({{ day }});
+        {% endfor %}
+    }
+
+    // Функции сохранения с отладочным выводом
+    function updatePlanned(input) {
+        console.log('updatePlanned вызвана', input);
+        const taskId = input.dataset.taskId;
+        const day = parseInt(input.dataset.day);
+        let quantity = parseFloat(input.value);
+        if (isNaN(quantity)) quantity = 0;
+        console.log('Отправка:', {task_id: taskId, day: day, quantity: quantity, year: {{ year }}, month: {{ month }}});
+
+        fetch('/production/api/schedule/update_planned', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                task_id: taskId,
+                day: day,
+                quantity: quantity,
+                year: {{ year }},
+                month: {{ month }},
+                shift: 1
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Ответ сервера:', data);
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Ошибка: ' + data.error);
+                location.reload();
+            }
+        })
+        .catch(err => {
+            console.error('Ошибка при сохранении:', err);
+            alert('Ошибка сохранения: ' + err.message);
+            location.reload();
+        });
+    }
+
+    function updateActual(input) {
+        console.log('updateActual вызвана', input);
+        const taskId = input.dataset.taskId;
+        const day = parseInt(input.dataset.day);
+        let quantity = parseFloat(input.value);
+        if (isNaN(quantity)) quantity = 0;
+        fetch('/production/api/schedule/update_actual', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                task_id: taskId,
+                day: day,
+                quantity: quantity,
+                year: {{ year }},
+                month: {{ month }},
+                shift: 1
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) location.reload();
+            else { alert('Ошибка: ' + data.error); location.reload(); }
+        })
+        .catch(err => { console.error(err); alert('Ошибка сохранения'); location.reload(); });
+    }
+
+    function updateCarryover(input) {
+        console.log('updateCarryover вызвана', input);
+        const taskId = input.dataset.taskId;
+        const day = parseInt(input.dataset.day);
+        let quantity = parseFloat(input.value);
+        if (isNaN(quantity)) quantity = 0;
+        fetch('/production/api/schedule/update_carryover', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                task_id: taskId,
+                day: day,
+                quantity: quantity,
+                year: {{ year }},
+                month: {{ month }},
+                shift: 1
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) location.reload();
+            else { alert('Ошибка: ' + data.error); location.reload(); }
+        })
+        .catch(err => { console.error(err); alert('Ошибка сохранения'); location.reload(); });
+    }
+
+    function syncTasks() {
+        if (!confirm('Создать производственные задачи для всех позиций счетов?')) return;
+        fetch('/production/api/tasks/sync_from_invoices', { method: 'POST', headers: {'Content-Type': 'application/json'} })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Создано: ${data.created}, уже существовало: ${data.existing}`);
+                location.reload();
+            } else alert('Ошибка синхронизации');
+        })
+        .catch(err => { console.error(err); alert('Ошибка синхронизации'); });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadCollapsedState();
+        applyCollapsedState();
+        console.log('График загружен, canEdit функция определена?', typeof canEdit);
+    });
+</script>
+{% endblock %}

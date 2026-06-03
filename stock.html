@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Склад готовой продукции{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Склад готовой продукции</h2>
+        <div>
+            <a href="{{ url_for('finished_goods.add_receipt') }}" class="btn btn-success">+ Приход</a>
+            <a href="{{ url_for('finished_goods.ship') }}" class="btn btn-primary">Отгрузка</a>
+            <a href="{{ url_for('finished_goods.reserve') }}" class="btn btn-warning">Резерв</a>
+        </div>
+    </div>
+
+    <!-- Форма сортировки -->
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <form method="GET" class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <label class="col-form-label">Сортировать:</label>
+                </div>
+                <div class="col-auto">
+                    <select name="sort_by" class="form-select form-select-sm">
+                        <option value="account" {% if sort_by == 'account' %}selected{% endif %}>По счёту</option>
+                        <option value="product_name" {% if sort_by == 'product_name' %}selected{% endif %}>По наименованию</option>
+                        <option value="total_quantity" {% if sort_by == 'total_quantity' %}selected{% endif %}>По остатку</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <select name="sort_order" class="form-select form-select-sm">
+                        <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>Возрастание</option>
+                        <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>Убывание</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-sm btn-primary">Применить</button>
+                </div>
+                <div class="col-auto ms-auto">
+                    <a href="{{ url_for('finished_goods.stock_overview') }}" class="btn btn-sm btn-secondary">Сбросить</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Таблица -->
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th>Счёт</th>
+                    <th>Изделие</th>
+                    <th>Вес 1 шт (т)</th>
+                    <th>Общий остаток, шт</th>
+                    <th>Общий остаток, тонн</th>
+                    <th>В резерве, шт</th>
+                    <th>Свободно, шт</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in stock %}
+                <tr>
+                    <td>{{ item.account }}</td>
+                    <td>{{ item.product_name }}</td>
+                    <td>{{ "%.3f"|format(item.weight_ton) }}</td>
+                    <td>{{ item.total_quantity|round(0)|int }}</td>
+                    <td>{{ "%.2f"|format(item.total_weight) }}</td>
+                    <td>{{ item.reserved|round(0)|int }}</td>
+                    <td class="{% if item.free == 0 %}text-danger{% else %}text-success{% endif %}">
+                        {{ item.free|round(0)|int }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        Нет продукции на складе
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Пагинация -->
+    {% if pagination and pagination.pages > 1 %}
+    <nav>
+        <ul class="pagination justify-content-center">
+            {% if pagination.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('finished_goods.stock_overview', page=pagination.prev_num, sort_by=sort_by, sort_order=sort_order) }}">← Предыдущая</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link">← Предыдущая</span>
+            </li>
+            {% endif %}
+            
+            {% for p in pagination.iter_pages() %}
+                {% if p %}
+                    {% if p == pagination.page %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ p }}</span>
+                    </li>
+                    {% else %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('finished_goods.stock_overview', page=p, sort_by=sort_by, sort_order=sort_order) }}">{{ p }}</a>
+                    </li>
+                    {% endif %}
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if pagination.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('finished_goods.stock_overview', page=pagination.next_num, sort_by=sort_by, sort_order=sort_order) }}">Следующая →</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link">Следующая →</span>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

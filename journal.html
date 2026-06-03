@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Журнал документов{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="fas fa-folder-open"></i> Журнал документов</h2>
+
+    <form method="GET" class="row g-3 mb-4">
+        <div class="col-md-3">
+            <label>Тип документа</label>
+            <select name="type" class="form-control">
+                <option value="">Все</option>
+                {% for t in doc_types %}
+                <option value="{{ t }}" {% if current_type == t %}selected{% endif %}>
+                    {{ t.replace('_', ' ').title() }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label>Поиск</label>
+            <input type="text" name="search" class="form-control" placeholder="Партия, продукт, заказ..." value="{{ search }}">
+        </div>
+        <div class="col-md-2">
+            <label>Дата от</label>
+            <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+        </div>
+        <div class="col-md-2">
+            <label>Дата до</label>
+            <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter"></i> Фильтр</button>
+        </div>
+    </form>
+
+    <div class="table-wrapper">
+        <table class="table table-hover table-sm">
+            <thead class="thead-light">
+                <tr>
+                    <th>Дата</th><th>Тип</th><th>Название</th><th>Детали</th><th>Пользователь</th><th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td style="white-space: nowrap;">{{ log.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                    <td>{{ log.doc_type.replace('_', ' ').title() }}</td>
+                    <td>{{ log.title }}</td>
+                    <td>
+                        {% if log.batch_number %}<span class="badge badge-secondary">Партия: {{ log.batch_number }}</span>{% endif %}
+                        {% if log.product_name %}<span class="badge badge-info">{{ log.product_name }}</span>{% endif %}
+                        {% if log.customer_order %}<span class="badge badge-success">Заказ: {{ log.customer_order }}</span>{% endif %}
+                        {% if log.employee_name %}<span class="badge badge-warning">{{ log.employee_name }}</span>{% endif %}
+                    </td>
+                    <td>{{ log.user.full_name if log.user else '?' }}</td>
+                    <td><a href="{{ log.get_view_url() }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center">Нет записей</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if pagination.pages > 1 %}
+    <nav><ul class="pagination justify-content-center">
+        {% for p in pagination.iter_pages() %}
+            {% if p %}
+                <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('documents.journal', page=p, type=current_type, search=search, date_from=date_from, date_to=date_to) }}">{{ p }}</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+        {% endfor %}
+    </ul></nav>
+    {% endif %}
+</div>
+{% endblock %}

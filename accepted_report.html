@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+
+{% block title %}Принято за сутки - {{ report_date.strftime('%d.%m.%Y') }}{% endblock %}
+
+{% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+    .stat-card {
+        transition: transform 0.2s;
+        cursor: pointer;
+    }
+    .stat-card:hover {
+        transform: translateY(-3px);
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
+    }
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        .card {
+            border: 1px solid #ddd !important;
+            box-shadow: none !important;
+        }
+        .stat-card {
+            border: 1px solid #ddd;
+        }
+        .display-4 {
+            font-size: 1.5rem;
+        }
+        .chart-container {
+            height: 200px;
+        }
+    }
+    @media (max-width: 768px) {
+        .chart-container {
+            height: 220px;
+        }
+        .display-4 {
+            font-size: 1.3rem;
+        }
+        .stat-card .card-body {
+            padding: 0.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h2>Принято за сутки</h2>
+        <div class="no-print">
+            <button onclick="window.print()" class="btn btn-secondary me-2">
+                <i class="fas fa-print"></i> Печать
+            </button>
+            <a href="{{ url_for('control.export_accepted_report', date=report_date.strftime('%Y-%m-%d')) }}" class="btn btn-success">
+                <i class="fas fa-file-excel"></i> Экспорт в Excel
+            </a>
+        </div>
+    </div>
+
+    <!-- Выбор даты -->
+    <div class="card mb-4 no-print">
+        <div class="card-body">
+            <form method="GET" class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <label class="col-form-label">Дата:</label>
+                </div>
+                <div class="col-auto">
+                    <input type="date" name="date" class="form-control" value="{{ report_date.strftime('%Y-%m-%d') }}">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">Показать</button>
+                </div>
+                <div class="col-auto">
+                    <a href="{{ url_for('control.accepted_report') }}" class="btn btn-secondary">Сегодня</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Карточки статистики -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Всего принято</h5>
+                    <p class="card-text display-4">{{ total_quantity|round(0)|int }} шт.</p>
+                    <small>{{ reports_count }} актов</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">С первого раза</h5>
+                    <p class="card-text display-4">{{ total_first_time|round(0)|int }} шт.</p>
+                    <small>{{ (total_first_time / total_quantity * 100) if total_quantity > 0 else 0 }}%</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-warning text-white">
+                <div class="card-body">
+                    <h5 class="card-title">После исправления</h5>
+                    <p class="card-text display-4">{{ total_after_fix|round(0)|int }} шт.</p>
+                    <small>{{ (total_after_fix / total_quantity * 100) if total_quantity > 0 else 0 }}%</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-secondary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Средняя партия</h5>
+                    <p class="card-text display-4">{{ (total_quantity / reports_count) if reports_count > 0 else 0|round(1) }} шт.</p>
+                    <small>на один акт</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- График по часам -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Динамика приёмки по часам</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="hourlyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Распределение по сменам и дефекты -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Распределение по сменам</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 250px;">
+                        <canvas id="shiftChart"></canvas>
+                    </div>
+                    <div class="row mt-3 text-center">
+                        <div class="col-6">
+                            <div class="bg-light p-2 rounded">
+                                <strong>1-я смена</strong><br>
+                                <span class="h4 text-primary">{{ shift_values[0]|round(0)|int }}</span> шт.
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-light p-2 rounded">
+                                <strong>2-я смена</strong><br>
+                                <span class="h4 text-info">{{ shift_values[1]|round(0)|int }}</span> шт.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Распределение дефектов</h5>
+                </div>
+                <div class="card-body">
+                    {% if defects_labels and defects_counts %}
+                    <div class="chart-container" style="height: 250px;">
+                        <canvas id="defectsChart"></canvas>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info text-center mb-0">
+                        Нет данных о дефектах за выбранный день
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Таблица с детализацией по изделиям -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <i class="fas fa-list"></i> Детализация по изделиям
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>№</th>
+                            <th>Изделие</th>
+                            <th>Всего принято, шт</th>
+                            <th>С первого раза</th>
+                            <th>После исправления</th>
+                            <th>Контролёры</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>{{ loop.index }}</td
+                            <td><strong>{{ item.name }}</strong></td>
+                            <td>{{ item.quantity|round(0)|int }}</td>
+                            <td class="text-success">{{ item.first_time|round(0)|int }}</td>
+                            <td class="text-warning">{{ item.after_fix|round(0)|int }}</td>
+                            <td>{{ item.inspectors }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                Нет принятых изделий за {{ report_date.strftime('%d.%m.%Y') }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-secondary">
+                        <tr>
+                            <th colspan="2">ИТОГО:</th>
+                            <th>{{ total_quantity|round(0)|int }}</th>
+                            <th>{{ total_first_time|round(0)|int }}</th>
+                            <th>{{ total_after_fix|round(0)|int }}</th>
+                            <th>—</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Динамика по часам
+    const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
+    new Chart(hourlyCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ hourly_labels|tojson }},
+            datasets: [
+                {
+                    label: 'Принято всего',
+                    data: {{ hourly_accepted|tojson }},
+                    backgroundColor: 'rgba(40, 167, 69, 0.7)',
+                    borderColor: '#28a745',
+                    borderWidth: 1
+                },
+                {
+                    label: 'С первого раза',
+                    data: {{ hourly_first_time|tojson }},
+                    backgroundColor: 'rgba(23, 162, 184, 0.7)',
+                    borderColor: '#17a2b8',
+                    borderWidth: 1
+                },
+                {
+                    label: 'После исправления',
+                    data: {{ hourly_after_fix|tojson }},
+                    backgroundColor: 'rgba(255, 193, 7, 0.7)',
+                    borderColor: '#ffc107',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Количество, шт'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Час'
+                    },
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            }
+        }
+    });
+
+    // Распределение по сменам
+    const shiftCtx = document.getElementById('shiftChart').getContext('2d');
+    new Chart(shiftCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ shift_labels|tojson }},
+            datasets: [{
+                data: {{ shift_values|tojson }},
+                backgroundColor: ['#007bff', '#17a2b8'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Распределение дефектов
+    {% if defects_labels and defects_counts %}
+    const defectsCtx = document.getElementById('defectsChart').getContext('2d');
+    new Chart(defectsCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ defects_labels|tojson }},
+            datasets: [{
+                data: {{ defects_counts|tojson }},
+                backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        font: { size: 10 }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+</script>
+{% endblock %}
